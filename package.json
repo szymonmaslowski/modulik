@@ -8,6 +8,12 @@
   "files": [
     "src"
   ],
+  "dependencies": {
+    "chokidar": "^3.0.1",
+    "get-caller-file": "^2.0.5",
+    "lodash": "^4.17.11",
+    "uuid": "^3.3.2"
+  },
   "devDependencies": {
     "babel-eslint": "^10.0.2",
     "eslint": "5.3.0",
