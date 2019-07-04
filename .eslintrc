@@ -1,0 +1,23 @@
+{
+  "plugins": [
+    "prettier",
+    "react"
+  ],
+  "extends": [
+    "airbnb",
+    "prettier"
+  ],
+  "rules": {
+    "prettier/prettier": "error",
+    "no-console": ["error", {
+      "allow": ["error", "info"]
+    }],
+    "global-require": "off",
+    "import/no-dynamic-require": "off"
+  },
+  "env": {
+    "browser": true,
+    "es6": true,
+    "node": true
+  }
+}
