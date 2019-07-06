@@ -22,7 +22,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 app.use(/^\/$/, async (req, res) => {
   const ssr = await ssrWatched.module;
-  const response = ssr({ title: 'Hello World' });
+  const response = await ssr({ title: 'Hello World' });
   res.send(response);
 });
 
