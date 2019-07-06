@@ -14,7 +14,6 @@ const port = process.argv[2];
 
 const app = express();
 const compiler = webpack(webpackConfig);
-app.use(require('morgan')('tiny'));
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(resolve('client')));
