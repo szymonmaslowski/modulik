@@ -17,12 +17,6 @@ to rebuild from scratch which takes time - more then just an update.
 
 Exactly that case you can find in the [example](example).
 
-## Installation
-
-```bash
-yarn add watch-module
-```
-
 ## Simple example
 
 There are two modules:
