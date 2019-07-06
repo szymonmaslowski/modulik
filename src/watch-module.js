@@ -1,7 +1,6 @@
 const { fork } = require('child_process');
 const { resolve, dirname } = require('path');
 const chokidar = require('chokidar');
-const { debounce } = require('lodash');
 const getCallerFile = require('get-caller-file');
 const { v4 } = require('uuid');
 
@@ -13,13 +12,12 @@ const createLogger = (moduleName, quiet) => message => {
 
 const configDefaults = {
   watch: [],
-  delay: 100,
   quiet: false,
   disable: false,
 };
 
 const launchWatcher = ({ cfg, callerPath, resolveModuleBody }) => {
-  const { path, watch, delay, quiet } = cfg;
+  const { path, watch, quiet } = cfg;
 
   const log = createLogger(path, quiet);
   const pathAbsolute = resolve(callerPath, path);
@@ -30,6 +28,8 @@ const launchWatcher = ({ cfg, callerPath, resolveModuleBody }) => {
 
   let child = null;
   let childReady = false;
+  let moduleReady = false;
+  let changesDuringRestart = false;
 
   const messagesQueue = new Set();
   const sendQueuedMessages = () => {
@@ -57,7 +57,7 @@ const launchWatcher = ({ cfg, callerPath, resolveModuleBody }) => {
             correlationId,
             data,
           });
-          if (childReady) {
+          if (moduleReady) {
             sendQueuedMessages();
           }
         });
@@ -70,9 +70,16 @@ const launchWatcher = ({ cfg, callerPath, resolveModuleBody }) => {
     child = fork(childPath, [pathAbsolute], { stdio: [0, 1, 2, 'ipc'] });
     child.on('message', message => {
       if (message.type === 'ready') {
+        childReady = true;
+        if (changesDuringRestart) {
+          changesDuringRestart = false;
+          // eslint-disable-next-line no-use-before-define
+          restartChild();
+          return;
+        }
         const { moduleType, moduleBody } = message;
         resolveModule(moduleType, moduleBody);
-        childReady = true;
+        moduleReady = true;
         log('Ready.');
         sendQueuedMessages();
         return;
@@ -83,24 +90,24 @@ const launchWatcher = ({ cfg, callerPath, resolveModuleBody }) => {
       }
     });
   };
-  const restartChild = debounce((_, changedFilePath) => {
-    // TODO: function gets called also for not watched paths. Bellow code fixes that
-    if (changedFilePath) {
-      const otherFileChanged =
-        !pathsToWatchOn.includes(changedFilePath) &&
-        !pathsToWatchOn.find(i => changedFilePath.includes(i));
-      if (otherFileChanged) return;
+  const restartChild = () => {
+    if (!childReady) {
+      changesDuringRestart = true;
+      return;
     }
 
     log('Restarting..');
     child.on('exit', () => {
       childReady = false;
+      moduleReady = false;
       runChild();
     });
     child.kill();
-  }, delay);
+  };
 
-  chokidar.watch(pathsToWatchOn).on('raw', restartChild);
+  chokidar
+    .watch(pathsToWatchOn, { ignoreInitial: true })
+    .on('all', restartChild);
   runChild();
 
   return () => {
