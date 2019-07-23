@@ -29,6 +29,7 @@ const launchWatcher = ({ cfg, callerPath, resolveModuleBody }) => {
   let child = null;
   let childReady = false;
   let moduleReady = false;
+  let moduleKilled = false;
   let changesDuringRestart = false;
 
   const messagesQueue = new Set();
@@ -66,52 +67,67 @@ const launchWatcher = ({ cfg, callerPath, resolveModuleBody }) => {
     resolveModuleBody(moduleBody);
   };
 
-  const runChild = () => {
-    child = fork(childPath, [pathAbsolute], { stdio: [0, 1, 2, 'ipc'] });
-    child.on('message', message => {
-      if (message.type === 'ready') {
-        childReady = true;
-        if (changesDuringRestart) {
-          changesDuringRestart = false;
-          // eslint-disable-next-line no-use-before-define
-          restartChild();
+  const runChild = () =>
+    new Promise(resolvePromise => {
+      child = fork(childPath, [pathAbsolute]);
+      child.on('message', message => {
+        if (message.type === 'ready') {
+          childReady = true;
+          if (changesDuringRestart) {
+            changesDuringRestart = false;
+            // eslint-disable-next-line no-use-before-define
+            restartChild();
+            return;
+          }
+          const { moduleType, moduleBody } = message;
+          resolveModule(moduleType, moduleBody);
+          moduleReady = true;
+          resolvePromise();
+          log('Ready.');
+          sendQueuedMessages();
           return;
         }
-        const { moduleType, moduleBody } = message;
-        resolveModule(moduleType, moduleBody);
-        moduleReady = true;
-        log('Ready.');
-        sendQueuedMessages();
-        return;
-      }
-      if (message.type === 'call-result') {
-        const { correlationId, result } = message;
-        resolveCall({ correlationId, result });
-      }
+        if (message.type === 'call-result') {
+          const { correlationId, result } = message;
+          resolveCall({ correlationId, result });
+        }
+      });
     });
-  };
-  const restartChild = () => {
+  const stopChild = () =>
+    new Promise(resolvePromise => {
+      child.on('exit', () => {
+        childReady = false;
+        moduleReady = false;
+        resolvePromise();
+      });
+      child.kill();
+    });
+  const restartChild = async () => {
     if (!childReady) {
       changesDuringRestart = true;
       return;
     }
 
     log('Restarting..');
-    child.on('exit', () => {
-      childReady = false;
-      moduleReady = false;
-      runChild();
-    });
-    child.kill();
+    await stopChild();
+    await runChild();
   };
 
-  chokidar
+  const fsWatcher = chokidar
     .watch(pathsToWatchOn, { ignoreInitial: true })
     .on('all', restartChild);
   runChild();
 
-  return () => {
-    restartChild();
+  const kill = async () => {
+    if (moduleKilled) return;
+    moduleKilled = true;
+    fsWatcher.close();
+    await stopChild();
+  };
+
+  return {
+    restart: () => restartChild(),
+    kill: () => kill(),
   };
 };
 
@@ -129,10 +145,11 @@ module.exports = (pathOrConfig, config) => {
   }
 
   let resolveModuleBody = () => {};
-  let restart = () => {};
   const modulePromise = new Promise(resolvePromise => {
     resolveModuleBody = resolvePromise;
   });
+  let restart = () => Promise.resolve();
+  let kill = () => Promise.resolve();
   const callerPath = dirname(getCallerFile());
 
   if (disable) {
@@ -140,7 +157,11 @@ module.exports = (pathOrConfig, config) => {
     const originalModule = require(pathAbsolute);
     resolveModuleBody(originalModule);
   } else {
-    restart = launchWatcher({ cfg, callerPath, resolveModuleBody });
+    const watcher = launchWatcher({ cfg, callerPath, resolveModuleBody });
+    /* eslint-disable prefer-destructuring */
+    restart = watcher.restart;
+    kill = watcher.kill;
+    /* eslint-enable prefer-destructuring */
   }
 
   return {
@@ -148,5 +169,6 @@ module.exports = (pathOrConfig, config) => {
       return modulePromise;
     },
     restart,
+    kill,
   };
 };
