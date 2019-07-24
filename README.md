@@ -1,5 +1,7 @@
 # watch-module
 
+> Package is under developement and is not exposed to the public registry yet
+
 Restart single module independently from the rest of your application.
 
 Suppose you have a heavy server and it takes very long time to fully
