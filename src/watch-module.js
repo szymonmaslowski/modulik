@@ -16,7 +16,7 @@ const configDefaults = {
   disable: false,
 };
 
-const launchWatcher = ({ cfg, callerPath, resolveModuleBody }) => {
+const launchWatcher = ({ cfg, callerPath }) => {
   const { path, watch, quiet } = cfg;
 
   const log = createLogger(path, quiet);
@@ -27,43 +27,49 @@ const launchWatcher = ({ cfg, callerPath, resolveModuleBody }) => {
   ];
 
   let child = null;
-  let childReady = false;
   let moduleReady = false;
   let moduleKilled = false;
   let changesDuringRestart = false;
+  let resolveModuleBody = () => {};
+  let moduleBodyPromise = null;
 
-  const messagesQueue = new Set();
-  const sendQueuedMessages = () => {
-    messagesQueue.forEach(message => {
-      child.send(message);
+  const recreateModuleBodyPromise = () => {
+    moduleBodyPromise = new Promise(resolvePromise => {
+      resolveModuleBody = resolvePromise;
     });
-    messagesQueue.clear();
   };
 
-  const callResolversMap = new Map();
-  const resolveCall = ({ correlationId, result }) => {
-    callResolversMap.get(correlationId)(result);
-    callResolversMap.delete(correlationId);
+  const messagesToModuleBuffer = new Set();
+  const sendBufferedMessagesToModule = () => {
+    messagesToModuleBuffer.forEach(message => {
+      child.send(message);
+    });
+    messagesToModuleBuffer.clear();
+  };
+
+  const childModuleInvocationsCallbacksMap = new Map();
+  const resolveModuleInvocation = ({ correlationId, result }) => {
+    childModuleInvocationsCallbacksMap.get(correlationId)(result);
+    childModuleInvocationsCallbacksMap.delete(correlationId);
   };
 
   const resolveModule = (type, body) => {
     let moduleBody = body;
     if (type === 'function') {
-      moduleBody = data =>
+      moduleBody = (...args) =>
         new Promise(resolvePromise => {
           const correlationId = v4();
-          callResolversMap.set(correlationId, resolvePromise);
-          messagesQueue.add({
-            type: 'call',
+          childModuleInvocationsCallbacksMap.set(correlationId, resolvePromise);
+          messagesToModuleBuffer.add({
+            type: 'invoke',
             correlationId,
-            data,
+            args,
           });
           if (moduleReady) {
-            sendQueuedMessages();
+            sendBufferedMessagesToModule();
           }
         });
     }
-
     resolveModuleBody(moduleBody);
   };
 
@@ -72,51 +78,74 @@ const launchWatcher = ({ cfg, callerPath, resolveModuleBody }) => {
       child = fork(childPath, [pathAbsolute]);
       child.on('message', message => {
         if (message.type === 'ready') {
-          childReady = true;
           if (changesDuringRestart) {
             changesDuringRestart = false;
             // eslint-disable-next-line no-use-before-define
             restartChild();
             return;
           }
+
           const { moduleType, moduleBody } = message;
           resolveModule(moduleType, moduleBody);
           moduleReady = true;
           resolvePromise();
           log('Ready.');
-          sendQueuedMessages();
+          sendBufferedMessagesToModule();
           return;
         }
-        if (message.type === 'call-result') {
+
+        if (message.type === 'invocation-result') {
           const { correlationId, result } = message;
-          resolveCall({ correlationId, result });
+          resolveModuleInvocation({ correlationId, result });
         }
       });
+      child.on('exit', (code, signal) => {
+        if (!code || !signal) return;
+        throw new Error(
+          `Watched module exited with status ${code} and signal ${signal}`,
+        );
+      });
     });
+
   const stopChild = () =>
     new Promise(resolvePromise => {
       child.on('exit', () => {
-        childReady = false;
         moduleReady = false;
         resolvePromise();
       });
       child.kill();
     });
-  const restartChild = async () => {
-    if (!childReady) {
-      changesDuringRestart = true;
-      return;
-    }
 
+  const restartChild = async () => {
     log('Restarting..');
+    recreateModuleBodyPromise();
     await stopChild();
     await runChild();
   };
 
+  const handleFileChange = () => {
+    if (!moduleReady) {
+      changesDuringRestart = true;
+      return;
+    }
+    restartChild();
+  };
+
+  recreateModuleBodyPromise();
   const fsWatcher = chokidar
     .watch(pathsToWatchOn, { ignoreInitial: true })
-    .on('all', restartChild);
+    .on('all', handleFileChange);
   runChild();
+
+  const getModule = () =>
+    new Promise((resolvePromise, rejectPromise) => {
+      if (moduleKilled) {
+        rejectPromise(new Error('Module killed'));
+        return;
+      }
+
+      moduleBodyPromise.then(resolvePromise);
+    });
 
   const kill = async () => {
     if (moduleKilled) return;
@@ -126,8 +155,9 @@ const launchWatcher = ({ cfg, callerPath, resolveModuleBody }) => {
   };
 
   return {
-    restart: () => restartChild(),
-    kill: () => kill(),
+    getModule,
+    restart: restartChild,
+    kill,
   };
 };
 
@@ -144,29 +174,29 @@ module.exports = (pathOrConfig, config) => {
     throw new Error('Invalid module path');
   }
 
-  let resolveModuleBody = () => {};
-  const modulePromise = new Promise(resolvePromise => {
-    resolveModuleBody = resolvePromise;
-  });
-  let restart = () => Promise.resolve();
-  let kill = () => Promise.resolve();
+  let getModule = null;
+  let restart = null;
+  let kill = null;
   const callerPath = dirname(getCallerFile());
 
   if (disable) {
     const pathAbsolute = resolve(callerPath, path);
     const originalModule = require(pathAbsolute);
-    resolveModuleBody(originalModule);
+    getModule = () => Promise.resolve(originalModule);
+    restart = () => Promise.resolve();
+    kill = () => Promise.resolve();
   } else {
-    const watcher = launchWatcher({ cfg, callerPath, resolveModuleBody });
+    const watcher = launchWatcher({ cfg, callerPath });
     /* eslint-disable prefer-destructuring */
-    restart = watcher.restart;
-    kill = watcher.kill;
+    getModule = async () => watcher.getModule();
+    restart = async () => watcher.restart();
+    kill = async () => watcher.kill();
     /* eslint-enable prefer-destructuring */
   }
 
   return {
     get module() {
-      return modulePromise;
+      return getModule();
     },
     restart,
     kill,

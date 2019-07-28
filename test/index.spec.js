@@ -1,3 +1,6 @@
+const { resolve } = require('path');
+const { existsSync } = require('fs');
+const rimraf = require('rimraf');
 const watchModule = require('..');
 
 describe('module', () => {
@@ -97,6 +100,26 @@ describe('"restart" property', () => {
   it('is a function', async done => {
     const moduleWatched = watchModule('./resources/number-module.js');
     expect(moduleWatched.restart).toEqual(expect.any(Function));
+    await moduleWatched.kill();
+    done();
+  });
+  it('restarts watched module', async done => {
+    const filePath = resolve(
+      __dirname,
+      'resources/fs-module-resources/file.txt',
+    );
+
+    rimraf.sync(filePath);
+    const moduleWatched = watchModule('./resources/fs-module.js');
+    await moduleWatched.module;
+    expect(existsSync(filePath)).toBeTruthy();
+
+    rimraf.sync(filePath);
+    moduleWatched.restart();
+    await moduleWatched.module;
+    expect(existsSync(filePath)).toBeTruthy();
+
+    rimraf.sync(filePath);
     await moduleWatched.kill();
     done();
   });

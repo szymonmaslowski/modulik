@@ -10,11 +10,11 @@ try {
   serializable = false;
 }
 
-process.on('message', async ({ type, correlationId, data }) => {
-  if (type === 'call') {
+process.on('message', async ({ type, correlationId, args }) => {
+  if (type === 'invoke') {
     if (moduleType !== 'function') return;
-    const result = await childModule(data);
-    process.send({ type: 'call-result', correlationId, result });
+    const result = await childModule(...args);
+    process.send({ type: 'invocation-result', correlationId, result });
   }
 });
 process.send({
