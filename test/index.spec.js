@@ -43,6 +43,12 @@ describe('module', () => {
     await moduleWatched2.kill();
     done();
   });
+  it('creates object', async done => {
+    const moduleWatched = watchModule('./resources/number-module.js');
+    expect(moduleWatched).toEqual(expect.any(Object));
+    await moduleWatched.kill();
+    done();
+  });
   it('restarts module under provided path on changes to the file', async done => {
     const filePath = resolve(__dirname, 'resources/fs-module.txt');
     const modulePath = resolve(__dirname, 'resources/fs-module.js');
@@ -53,7 +59,6 @@ describe('module', () => {
     rimraf.sync(filePath);
     writeFileSync(modulePath, `${moduleContent}\n`);
     await wait(1000);
-    await moduleWatched.module;
 
     expect(existsSync(filePath)).toBeTruthy();
 
@@ -62,13 +67,38 @@ describe('module', () => {
     writeFileSync(modulePath, moduleContent);
     done();
   });
-  it('creates object', async done => {
-    const moduleWatched = watchModule('./resources/number-module.js');
-    expect(moduleWatched).toEqual(expect.any(Object));
+  it('restarts module on changes to files under path provided to watch option', async done => {
+    const filePath = resolve(__dirname, 'resources/fs-module.txt');
+    const module1Path = './resources/empty-module.js';
+    const module2Path = resolve(__dirname, 'resources/function-module.js');
+    const module1Content = readFileSync(
+      resolve(__dirname, module1Path),
+      'utf-8',
+    );
+    const module2Content = readFileSync(module2Path, 'utf-8');
+
+    const moduleWatched = watchModule('./resources/fs-module.js', {
+      watch: [module1Path, module2Path],
+    });
+    await moduleWatched.module;
+    rimraf.sync(filePath);
+    writeFileSync(resolve(__dirname, module1Path), `${module1Content}\n`);
+    await wait(1000);
+
+    expect(existsSync(filePath)).toBeTruthy();
+
+    rimraf.sync(filePath);
+    writeFileSync(module2Path, `${module2Content}\n`);
+    await wait(1000);
+
+    expect(existsSync(filePath)).toBeTruthy();
+
     await moduleWatched.kill();
+    writeFileSync(resolve(__dirname, module1Path), module1Content);
+    writeFileSync(module2Path, module2Content);
     done();
   });
-  it('disables logging when quiet property of config is set to true', async done => {
+  it('disables logging when quiet property of options is set to true', async done => {
     const spy = jest.spyOn(console, 'info');
     const moduleWatched1 = watchModule('./resources/number-module.js', {
       quiet: true,
@@ -85,7 +115,7 @@ describe('module', () => {
     spy.mockRestore();
     done();
   });
-  it('disables functionality of watching and restarting when disable property of config is set to true', async done => {
+  it('disables watching and restarting when disable option is set to true', async done => {
     const filePath = resolve(__dirname, 'resources/fs-module.txt');
     const modulePath = resolve(__dirname, 'resources/fs-module.js');
     const moduleContent = readFileSync(modulePath, 'utf-8');
@@ -95,7 +125,6 @@ describe('module', () => {
     rimraf.sync(filePath);
     writeFileSync(modulePath, `${moduleContent}\n`);
     await wait(1000);
-    await moduleWatched1.module;
 
     expect(existsSync(filePath)).toBeFalsy();
 
@@ -183,6 +212,16 @@ describe('"module" property', () => {
       await moduleWatched.kill();
       done();
     });
+    it(`exposes ${typeName} when module exports ${typeName} and disable option is set to true`, async done => {
+      const moduleWatched = watchModule(`./resources/${fileName}`, {
+        disable: true,
+      });
+      const exposedModule = await moduleWatched.module;
+      expect(typeof exposedModule).toEqual(matcher.type);
+      expect(exposedModule).toEqual(matcher.value);
+      await moduleWatched.kill();
+      done();
+    });
   });
   it('exposes object when module does not export anything', async done => {
     const moduleWatched = watchModule('./resources/empty-module.js');
@@ -191,6 +230,28 @@ describe('"module" property', () => {
     expect(exposedModule).toEqual(expect.any(Object));
     await moduleWatched.kill();
     done();
+  });
+  it('exposes object when module does not export anything and disable option is set to true', async done => {
+    const moduleWatched = watchModule('./resources/empty-module.js', {
+      disable: true,
+    });
+    const exposedModule = await moduleWatched.module;
+    expect(typeof exposedModule).toEqual('object');
+    expect(exposedModule).toEqual(expect.any(Object));
+    await moduleWatched.kill();
+    done();
+  });
+  it('throws when accessing killed module', async done => {
+    const moduleWatched = watchModule('./resources/number-module.js');
+    await moduleWatched.kill();
+    try {
+      await moduleWatched.module;
+    } catch (e) {
+      expect(e).toEqual(new Error('Module killed'));
+      done();
+      return;
+    }
+    throw new Error('Module did not throw');
   });
 });
 
@@ -218,6 +279,14 @@ describe('"restart" property', () => {
     await moduleWatched.kill();
     done();
   });
+  it('allows itself to be called when disable option is set to true', async done => {
+    const moduleWatched = watchModule('./resources/number-module.js', {
+      disable: true,
+    });
+    await moduleWatched.module;
+    moduleWatched.restart();
+    done();
+  });
 });
 
 describe('"kill" property', () => {
@@ -225,6 +294,38 @@ describe('"kill" property', () => {
     const moduleWatched = watchModule('./resources/number-module.js');
     expect(moduleWatched.kill).toEqual(expect.any(Function));
     await moduleWatched.kill();
+    done();
+  });
+  it('causes module to stop watching for changes', async done => {
+    const filePath = resolve(__dirname, 'resources/fs-module.txt');
+    const modulePath = resolve(__dirname, 'resources/fs-module.js');
+    const moduleContent = readFileSync(modulePath, 'utf-8');
+
+    const moduleWatched = watchModule(modulePath);
+    await moduleWatched.module;
+    rimraf.sync(filePath);
+    await moduleWatched.kill();
+    writeFileSync(modulePath, `${moduleContent}\n`);
+    await wait(1000);
+
+    expect(existsSync(filePath)).toBeFalsy();
+
+    await moduleWatched.kill();
+    writeFileSync(modulePath, moduleContent);
+    done();
+  });
+  it('allows itself to be called even if module is already killed', async done => {
+    const moduleWatched = watchModule('./resources/number-module.js');
+    await moduleWatched.kill();
+    await moduleWatched.kill();
+    done();
+  });
+  it('allows itself to be called when disable option is set to true', async done => {
+    const moduleWatched = watchModule('./resources/number-module.js', {
+      disable: true,
+    });
+    await moduleWatched.module;
+    moduleWatched.kill();
     done();
   });
 });

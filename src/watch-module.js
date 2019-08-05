@@ -1,5 +1,5 @@
 const { fork } = require('child_process');
-const { resolve, dirname } = require('path');
+const { resolve, dirname, parse } = require('path');
 const chokidar = require('chokidar');
 const getCallerFile = require('get-caller-file');
 const { v4 } = require('uuid');
@@ -19,7 +19,8 @@ const configDefaults = {
 const launchWatcher = ({ cfg, callerPath }) => {
   const { path, watch, quiet } = cfg;
 
-  const log = createLogger(path, quiet);
+  const moduleFileName = parse(path).base;
+  const log = createLogger(moduleFileName, quiet);
   const pathAbsolute = resolve(callerPath, path);
   const pathsToWatchOn = [
     pathAbsolute,
@@ -161,12 +162,12 @@ const launchWatcher = ({ cfg, callerPath }) => {
   };
 };
 
-module.exports = (pathOrConfig, config) => {
+module.exports = (pathOrConfig, options) => {
   const cfg = Object.assign(
     {},
     configDefaults,
     typeof pathOrConfig === 'string' ? { path: pathOrConfig } : pathOrConfig,
-    typeof config === 'object' ? config : {},
+    typeof options === 'object' ? options : {},
   );
 
   const { path, disable } = cfg;
