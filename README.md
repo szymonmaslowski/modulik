@@ -1,25 +1,43 @@
 # watch-module
 
-> Package is under developement and is not exposed to the public registry yet
+**watch-module** allow to restart single module independently from the rest of your application.
 
-Restart single module independently from the rest of your application.
+Suppose you have a heavy server. You would like it to be restarted every change
+in order to see the result immediately, but it takes very long time to fully
+start it. Using watch-module you are able to restart just particular part of
+your server keeping the rest up and running continuously.
 
-Suppose you have a heavy server and it takes very long time to fully
-start it, however you would like it to be restarted every change to
-immediately see the result. Using watch-module you would be able to
-restart just particular part of your server keeping rest of your server
-up.
+**Example:** there is a node server that supports
+Server Side Rendering and uses webpack-dev-middleware. It starts
+via nodemon, so any change to the code restarts whole server.
 
-The real case example could be a node server that supports
-Server Side Rendering and uses an webpack-dev-middleware. You are runnung
-it via nodemon, so it restarts on any module change. As SSR
-imports client module directly whole server app will restart
-on any change to that client module. Server restart will cause webpack
-to rebuild from scratch which takes time - more then just an update.
+**Problems:**
+1. every restart of server causes webpack-dev-middleware
+to recompile from scratch whole client-app (which could be time consuming)
+instead to just apply a change.
+1. even if you change only client-app related file you still need to
+restart the server in order to consume new changes for SSR which leads
+to problem 1.
 
-Exactly that case you can find in the [example](example).
+**Solution:** use watch-module to 1) import SSR module and 2) specify App
+component to be watched for changes. Additionally 3) exclude SSR and App files from
+nodemon watching.
 
-## Simple example
+**Result:**
+1. changes to SSR module don't restart whole server but only SSR module itself.
+1. changes to App component cause webpack-dev-middleware to just update
+client-app's assets because whole server was not restarted but rather only the
+SSR module.
+
+The above case you can find in the [example](example) project.
+
+## Installation
+
+```bash
+yarn add watch-module
+```
+
+## Simple usage example
 
 There are two modules:
 
@@ -31,7 +49,7 @@ module.exports = name => `Hello ${name}!`;
 `app.js`
 ```js
 const watchModule = require('watch-module');
-const greetWatched = watchModule('./greet.js');
+const greetWatched = watchModule('./greet');
 
 setInterval(() => {
   greetWatched.module
@@ -42,7 +60,7 @@ setInterval(() => {
 }, 1000);
 ```
 
-On `greet.js` file change whole app keeps running, but only greet module
+Every `greet.js` file change app keeps running, but only greet module
 gets restarted. During the restart time module is not available, however
 its invocations (`greet('John')`) are queued and once the module is back
 they gets immediately executed.
