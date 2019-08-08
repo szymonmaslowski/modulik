@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "test": "jest --runInBand",
-    "start": "nodemon -w src -x \"yarn --cwd example start\""
+    "start": "nodemon -q -w src -x \"yarn --cwd example start\""
   },
   "dependencies": {
     "chokidar": "^3.0.1",
