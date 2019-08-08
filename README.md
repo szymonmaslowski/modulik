@@ -67,8 +67,68 @@ they gets immediately executed.
 
 For more sophisticated usage example check out the [example](example) project.
 
-## Limitations
-
 ## API
 
+### watch-module
 
+**watch-module(modulePath[, options])**<br />
+**watch-module(options)**
+
+ - `modulePath` *\<string>* Path to entry of the module. Specified file will be
+ watched for changes 
+ - `options` *\<Object>*
+    - `watch` *\<Array>* Additional list of files or directories to be watched for changes
+    - `disable` *\<boolean>* Disables functionality of watching for changes and
+    restarting and just exposes the module. **Default:** `false`
+    - `quiet` *\<boolean>* Disables logs. **Default:** `false`
+ - Returns: <[ModuleWrapper](#ModuleWrapper)>
+
+```js
+watchModule('./path/to/module', {
+  watch: ['./path/to/related-module1', './path/to/related-module2'],
+  disable: PRODUCTION === true,
+  quiet: true,
+});
+```
+ 
+### ModuleWrapper
+
+**ModuleWrapper.module**
+
+ - Returns: \<Promise\<module>>
+ 
+If your module is of function type then you can invoke function exposed by
+ModuleWrapper.module property in order to execute your module and access its
+result.
+ 
+>  You can access a function result **only via Promsie API** even if your module
+is not promise based
+ 
+```js
+const myModule = await myModuleWatched.module;
+const result = await myModule('some', 'arguments');
+```
+
+**ModuleWrapper.restart()**
+
+ - Returns: \<Promise>
+ 
+```js
+await myModuleWatched.restart();
+console.info('My module is ready to be accessed');
+```
+
+**ModuleWrapper.kill()**
+
+ - Returns: \<Promise>
+ 
+```js
+await myModuleWatched.kill();
+try {
+  await myModuleWatched.module;
+} catch(e) {
+  console.info('I can not access my module, because it is already killed');
+}
+```
+
+## Limitations
