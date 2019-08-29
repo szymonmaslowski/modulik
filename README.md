@@ -127,9 +127,10 @@ console.info('My module is ready to be accessed');
 ```js
 await myModuleWatched.kill();
 try {
-  await myModuleWatched.module;
+  const myModule = await myModuleWatched.module;
+  await myModule('some', 'arguments');
 } catch(e) {
-  console.info('I can not access my module, because it is already killed');
+  console.info('I can access my module, but can not execute it, because it is already killed');
 }
 ```
 

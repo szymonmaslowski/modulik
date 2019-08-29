@@ -16,7 +16,7 @@ const configDefaults = {
   disable: false,
 };
 
-const launchWatcher = ({ cfg, callerPath }) => {
+const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
   const { path, watch, quiet } = cfg;
 
   const moduleFileName = parse(path).base;
@@ -29,39 +29,49 @@ const launchWatcher = ({ cfg, callerPath }) => {
 
   let child = null;
   let moduleReady = false;
+  let moduleReadyPromise = null;
   let moduleKilled = false;
   let changesDuringRestart = false;
-  let resolveModuleBody = () => {};
-  let moduleBodyPromise = null;
 
-  const recreateModuleBodyPromise = () => {
-    moduleBodyPromise = new Promise(resolvePromise => {
-      resolveModuleBody = resolvePromise;
-    });
-  };
-
-  const messagesToModuleBuffer = new Set();
+  const bufferOfMessagesToModule = new Set();
   const sendBufferedMessagesToModule = () => {
-    messagesToModuleBuffer.forEach(message => {
+    bufferOfMessagesToModule.forEach(message => {
       child.send(message);
     });
-    messagesToModuleBuffer.clear();
+    bufferOfMessagesToModule.clear();
   };
 
-  const childModuleInvocationsCallbacksMap = new Map();
+  const childModuleInvocationsCallbacks = new Map();
   const resolveModuleInvocation = ({ correlationId, result }) => {
-    childModuleInvocationsCallbacksMap.get(correlationId)(result);
-    childModuleInvocationsCallbacksMap.delete(correlationId);
+    const data = result.error ? undefined : result.data;
+    const error = result.error ? new Error(result.data) : undefined;
+    childModuleInvocationsCallbacks.get(correlationId)(data, error);
+    childModuleInvocationsCallbacks.delete(correlationId);
   };
 
   const resolveModule = (type, body) => {
     let moduleBody = body;
     if (type === 'function') {
       moduleBody = (...args) =>
-        new Promise(resolvePromise => {
+        new Promise((resolvePromise, rejectPromise) => {
+          if (moduleKilled) {
+            rejectPromise(new Error('Module is killed, cannot execute'));
+            return;
+          }
+
           const correlationId = v4();
-          childModuleInvocationsCallbacksMap.set(correlationId, resolvePromise);
-          messagesToModuleBuffer.add({
+          const onModuleFinishedExecution = (data, error) => {
+            if (error) {
+              rejectPromise(error);
+              return;
+            }
+            resolvePromise(data);
+          };
+          childModuleInvocationsCallbacks.set(
+            correlationId,
+            onModuleFinishedExecution,
+          );
+          bufferOfMessagesToModule.add({
             type: 'invoke',
             correlationId,
             args,
@@ -71,11 +81,11 @@ const launchWatcher = ({ cfg, callerPath }) => {
           }
         });
     }
-    resolveModuleBody(moduleBody);
+    return moduleBody;
   };
 
-  const runChild = () =>
-    new Promise(resolvePromise => {
+  const runChild = () => {
+    moduleReadyPromise = new Promise(resolvePromise => {
       child = fork(childPath, [pathAbsolute]);
       child.on('message', message => {
         if (message.type === 'ready') {
@@ -86,9 +96,10 @@ const launchWatcher = ({ cfg, callerPath }) => {
             return;
           }
 
-          const { moduleType, moduleBody } = message;
-          resolveModule(moduleType, moduleBody);
+          const { type, body } = message.data;
+          const moduleBody = resolveModule(type, body);
           moduleReady = true;
+          onReady(moduleBody);
           resolvePromise();
           log('Ready.');
           sendBufferedMessagesToModule();
@@ -107,6 +118,8 @@ const launchWatcher = ({ cfg, callerPath }) => {
         );
       });
     });
+    return moduleReadyPromise;
+  };
 
   const stopChild = () =>
     new Promise(resolvePromise => {
@@ -119,7 +132,7 @@ const launchWatcher = ({ cfg, callerPath }) => {
 
   const restartChild = async () => {
     log('Restarting..');
-    recreateModuleBodyPromise();
+    onRestart();
     await stopChild();
     await runChild();
   };
@@ -132,31 +145,20 @@ const launchWatcher = ({ cfg, callerPath }) => {
     restartChild();
   };
 
-  recreateModuleBodyPromise();
   const fsWatcher = chokidar
     .watch(pathsToWatchOn, { ignoreInitial: true })
     .on('all', handleFileChange);
   runChild();
 
-  const getModule = () =>
-    new Promise((resolvePromise, rejectPromise) => {
-      if (moduleKilled) {
-        rejectPromise(new Error('Module killed'));
-        return;
-      }
-
-      moduleBodyPromise.then(resolvePromise);
-    });
-
   const kill = async () => {
     if (moduleKilled) return;
     moduleKilled = true;
     fsWatcher.close();
+    await moduleReadyPromise;
     await stopChild();
   };
 
   return {
-    getModule,
     restart: restartChild,
     kill,
   };
@@ -175,31 +177,53 @@ module.exports = (pathOrConfig, options) => {
     throw new Error('Invalid module path');
   }
 
-  let getModule = null;
-  let restart = null;
-  let kill = null;
+  let apiModule = null;
+  let apiRestart = null;
+  let apiKill = null;
+
+  let resolveModuleBodyPromise = () => {};
   const callerPath = dirname(getCallerFile());
+
+  const recreateModuleBodyPromise = () => {
+    apiModule = new Promise(resolvePromise => {
+      resolveModuleBodyPromise = resolvePromise;
+    });
+  };
+  const resolveModuleBody = moduleBody => {
+    resolveModuleBodyPromise(
+      moduleBody === 'function'
+        ? async (...args) => moduleBody(...args)
+        : moduleBody,
+    );
+  };
 
   if (disable) {
     const pathAbsolute = resolve(callerPath, path);
-    const originalModule = require(pathAbsolute);
-    getModule = () => Promise.resolve(originalModule);
-    restart = () => Promise.resolve();
-    kill = () => Promise.resolve();
+    const moduleBody = require(pathAbsolute);
+    recreateModuleBodyPromise();
+    resolveModuleBody(moduleBody);
+    apiRestart = () => {};
+    apiKill = () => {};
   } else {
-    const watcher = launchWatcher({ cfg, callerPath });
-    /* eslint-disable prefer-destructuring */
-    getModule = async () => watcher.getModule();
-    restart = async () => watcher.restart();
-    kill = async () => watcher.kill();
-    /* eslint-enable prefer-destructuring */
+    recreateModuleBodyPromise();
+    const { restart, kill } = launchWatcher({
+      cfg,
+      callerPath,
+      onRestart: recreateModuleBodyPromise,
+      onReady: resolveModuleBody,
+    });
+    apiRestart = restart;
+    apiKill = async () => {
+      await apiModule;
+      await kill();
+    };
   }
 
   return {
     get module() {
-      return getModule();
+      return apiModule;
     },
-    restart,
-    kill,
+    restart: async () => apiRestart(),
+    kill: async () => apiKill(),
   };
 };
