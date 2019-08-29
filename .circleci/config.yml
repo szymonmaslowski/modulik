@@ -3,7 +3,7 @@ version: 2
 defaults: &defaults
   working_directory: ~/repo
   docker:
-    - image: circleci/node:lts
+    - image: circleci/node:8.16.0
 
 jobs:
   test:
@@ -23,6 +23,18 @@ jobs:
             - node_modules
           key: v1-dependencies-{{ checksum "yarn.lock" }}
 
+  deploy:
+    <<: *defaults
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Authenticate with registry
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/repo/.npmrc
+      - run:
+          name: Publish package
+          command: npm publish
+
 workflows:
   version: 2
   workflow:
@@ -31,3 +43,11 @@ workflows:
           filters:
             tags:
               only: /^v.*/
+      - deploy:
+          requires:
+            - test
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
