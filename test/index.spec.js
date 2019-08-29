@@ -140,6 +140,30 @@ describe('module', () => {
     await moduleWatched2.kill();
     done();
   });
+  it('allows to access killed module', async done => {
+    const moduleWatched = watchModule('./resources/number-module.js');
+    await moduleWatched.kill();
+    try {
+      await moduleWatched.module;
+    } catch (e) {
+      done(new Error('Module thrown'));
+      return;
+    }
+    done();
+  });
+  it('throws when executing killed module', async done => {
+    const moduleWatched = watchModule('./resources/function-module.js');
+    await moduleWatched.kill();
+    try {
+      const moduleBody = await moduleWatched.module;
+      await moduleBody();
+    } catch (e) {
+      expect(e).toEqual(new Error('Module is killed, cannot execute'));
+      done();
+      return;
+    }
+    done(new Error('Module did not throw'));
+  });
 });
 
 describe('returned object', () => {
@@ -240,18 +264,6 @@ describe('"module" property', () => {
     expect(exposedModule).toEqual(expect.any(Object));
     await moduleWatched.kill();
     done();
-  });
-  it('throws when accessing killed module', async done => {
-    const moduleWatched = watchModule('./resources/number-module.js');
-    await moduleWatched.kill();
-    try {
-      await moduleWatched.module;
-    } catch (e) {
-      expect(e).toEqual(new Error('Module killed'));
-      done();
-      return;
-    }
-    throw new Error('Module did not throw');
   });
 });
 
