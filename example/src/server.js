@@ -2,10 +2,10 @@ const { resolve } = require('path');
 const express = require('express');
 const webpack = require('webpack');
 const webpackDevMiddleware = require('webpack-dev-middleware');
-const watchModule = require('../../');
+const modulik = require('../../');
 const webpackConfig = require('../webpack.config');
 
-const ssrWatched = watchModule('./ssr.js', {
+const ssrModulik = modulik('./ssr', {
   watch: ['./App.jsx'],
   disable: process.env.NODE_ENV === 'production',
 });
@@ -21,7 +21,7 @@ if (process.env.NODE_ENV === 'production') {
   app.use(webpackDevMiddleware(compiler, { stats: 'minimal' }));
 }
 app.use(/^\/$/, async (req, res) => {
-  const ssr = await ssrWatched.module;
+  const ssr = await ssrModulik.module;
   const response = await ssr({ title: 'Hello World' });
   res.send(response);
 });

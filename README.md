@@ -1,10 +1,10 @@
-# watch-module
+# modulik
 
-**watch-module** allows to restart single module independently from the rest of your application.
+**modulik** allows to restart single module independently from the rest of your application.
 
 Suppose you have a heavy server. You would like it to be restarted every change
 in order to see the result immediately, but it takes very long time to fully
-start it. Using watch-module you are able to restart just particular part of
+start it. Using modulik you are able to restart just particular part of
 your server keeping the rest up and running continuously.
 
 **Example:** there is a node server that supports
@@ -19,7 +19,7 @@ instead of just to apply a change.
 restart the server in order to consume new changes for SSR which leads
 to problem 1.
 
-**Solution:** use watch-module to 1) import SSR module, 2) specify App
+**Solution:** use modulik to 1) import SSR module, 2) specify App
 component to be watched for changes and 3) exclude SSR and App files from
 nodemon watching.
 
@@ -34,7 +34,7 @@ The above case you can find in the [example](example) project.
 ## Installation
 
 ```bash
-yarn add watch-module
+yarn add modulik
 ```
 
 ## Simple usage example
@@ -48,11 +48,11 @@ module.exports = name => `Hello ${name}!`;
 
 `app.js`
 ```js
-const watchModule = require('watch-module');
-const greetWatched = watchModule('./greet');
+const modulik = require('modulik');
+const greetModulik = modulik('./greet');
 
 setInterval(async () => {
-  const greet = await greetWatched.module;
+  const greet = await greetModulik.module;
   const greeting = await greet('John');
   console.info(greeting);
   // -> Hello John!
@@ -68,10 +68,10 @@ For more sophisticated usage example check out the [example](example) project.
 
 ## API
 
-### watch-module
+### modulik
 
-**watch-module(modulePath[, options])**<br />
-**watch-module(options)**
+**modulik(modulePath[, options])**<br />
+**modulik(options)**
 
  - `modulePath` *\<string>* Path to entry of the module. Specified file will be
  watched for changes 
@@ -86,7 +86,7 @@ For more sophisticated usage example check out the [example](example) project.
  - Returns: <[ModuleWrapper](#ModuleWrapper)>
 
 ```js
-watchModule('./path/to/module', {
+modulik('./path/to/module', {
   watch: ['./path/to/related-module1', './path/to/related-module2'],
   disable: PRODUCTION === true,
   quiet: true,
@@ -107,8 +107,8 @@ result.
 is not promise based
  
 ```js
-const myModule = await myModuleWatched.module;
-const result = await myModule('some', 'arguments');
+const example = await exampleModulik.module;
+const result = await example('some', 'arguments');
 ```
 
 **ModuleWrapper.restart()**
@@ -116,7 +116,7 @@ const result = await myModule('some', 'arguments');
  - Returns: \<Promise>
  
 ```js
-await myModuleWatched.restart();
+await exampleModulik.restart();
 console.info('My module is ready to be accessed');
 ```
 
@@ -125,10 +125,10 @@ console.info('My module is ready to be accessed');
  - Returns: \<Promise>
  
 ```js
-await myModuleWatched.kill();
+await exampleModulik.kill();
 try {
-  const myModule = await myModuleWatched.module;
-  await myModule('some', 'arguments');
+  const example = await exampleModulik.module;
+  await example('some', 'arguments');
 } catch(e) {
   console.info('I can access my module, but can not execute it, because it is already killed');
 }

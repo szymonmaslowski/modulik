@@ -1,8 +1,8 @@
 {
-  "name": "watch-module",
+  "name": "modulik",
   "version": "0.0.0",
-  "main": "src/watch-module.js",
-  "repository": "fredZgred/watch-module",
+  "main": "src/modulik.js",
+  "repository": "fredZgred/modulik",
   "license": "MIT",
   "author": "Szymon Maslowski <i.am.szymon.maslowski@gmail.com>",
   "files": [
