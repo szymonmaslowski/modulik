@@ -8,7 +8,7 @@ const { v4 } = require('uuid');
 const childPath = path.resolve(__dirname, 'child.js');
 const createLogger = (moduleName, quiet) => message => {
   if (quiet) return;
-  console.info(`[WM]: ${moduleName} - ${message}`);
+  console.info(`[modulik]: ${moduleName} - ${message}`);
 };
 
 const configDefaults = {
