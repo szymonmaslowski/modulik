@@ -1,10 +1,11 @@
 const { fork } = require('child_process');
-const { resolve, dirname, parse } = require('path');
+const fs = require('fs');
+const path = require('path');
 const chokidar = require('chokidar');
 const getCallerFile = require('get-caller-file');
 const { v4 } = require('uuid');
 
-const childPath = resolve(__dirname, 'child.js');
+const childPath = path.resolve(__dirname, 'child.js');
 const createLogger = (moduleName, quiet) => message => {
   if (quiet) return;
   console.info(`[WM]: ${moduleName} - ${message}`);
@@ -17,14 +18,12 @@ const configDefaults = {
 };
 
 const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
-  const { path, watch, quiet } = cfg;
-
-  const moduleFileName = parse(path).base;
-  const log = createLogger(moduleFileName, quiet);
-  const pathAbsolute = resolve(callerPath, path);
+  const moduleFileName = path.parse(cfg.path).base;
+  const log = createLogger(moduleFileName, cfg.quiet);
+  const pathAbsolute = path.resolve(callerPath, cfg.path);
   const pathsToWatchOn = [
     pathAbsolute,
-    ...watch.map(fileName => resolve(callerPath, fileName)),
+    ...cfg.watch.map(fileName => path.resolve(callerPath, fileName)),
   ];
 
   let child = null;
@@ -53,19 +52,19 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
     let moduleBody = body;
     if (type === 'function') {
       moduleBody = (...args) =>
-        new Promise((resolvePromise, rejectPromise) => {
+        new Promise((resolve, reject) => {
           if (moduleKilled) {
-            rejectPromise(new Error('Module is killed, cannot execute'));
+            reject(new Error('Module is killed, cannot execute'));
             return;
           }
 
           const correlationId = v4();
           const onModuleFinishedExecution = (data, error) => {
             if (error) {
-              rejectPromise(error);
+              reject(error);
               return;
             }
-            resolvePromise(data);
+            resolve(data);
           };
           childModuleInvocationsCallbacks.set(
             correlationId,
@@ -85,7 +84,7 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
   };
 
   const runChild = () => {
-    moduleReadyPromise = new Promise(resolvePromise => {
+    moduleReadyPromise = new Promise(resolve => {
       child = fork(childPath, [pathAbsolute]);
       child.on('message', message => {
         if (message.type === 'ready') {
@@ -100,7 +99,7 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
           const moduleBody = resolveModule(type, body);
           moduleReady = true;
           onReady(moduleBody);
-          resolvePromise();
+          resolve();
           log('Ready.');
           sendBufferedMessagesToModule();
           return;
@@ -122,10 +121,10 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
   };
 
   const stopChild = () =>
-    new Promise(resolvePromise => {
+    new Promise(resolve => {
       child.on('exit', () => {
         moduleReady = false;
-        resolvePromise();
+        resolve();
       });
       child.kill();
     });
@@ -164,17 +163,39 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
   };
 };
 
-module.exports = (pathOrConfig, options) => {
-  const cfg = Object.assign(
+const fileExtensions = ['js', 'json'];
+
+module.exports = (pathOrOptions, options) => {
+  const callerPath = path.dirname(getCallerFile());
+  const pathAbsolute = path.resolve(
+    callerPath,
+    typeof pathOrOptions === 'string' ? pathOrOptions : pathOrOptions.path,
+  );
+  let cfg = Object.assign(
     {},
     configDefaults,
-    typeof pathOrConfig === 'string' ? { path: pathOrConfig } : pathOrConfig,
+    { path: pathAbsolute },
     typeof options === 'object' ? options : {},
   );
 
-  const { path, disable } = cfg;
-  if (!path) {
+  if (!cfg.path) {
     throw new Error('Invalid module path');
+  }
+  if (!path.parse(cfg.path).ext) {
+    const matchingExtension = fileExtensions.find(ext => {
+      try {
+        fs.readFileSync(`${cfg.path}.${ext}`);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    });
+    if (!matchingExtension) {
+      // Throw native node exception about that file doesn't exist
+      require(cfg.path);
+      throw new Error(`Cannot access file ${cfg.path}`);
+    }
+    cfg = Object.assign({}, cfg, { path: `${cfg.path}.${matchingExtension}` });
   }
 
   let apiModule = null;
@@ -182,11 +203,10 @@ module.exports = (pathOrConfig, options) => {
   let apiKill = null;
 
   let resolveModuleBodyPromise = () => {};
-  const callerPath = dirname(getCallerFile());
 
   const recreateModuleBodyPromise = () => {
-    apiModule = new Promise(resolvePromise => {
-      resolveModuleBodyPromise = resolvePromise;
+    apiModule = new Promise(resolve => {
+      resolveModuleBodyPromise = resolve;
     });
   };
   const resolveModuleBody = moduleBody => {
@@ -197,9 +217,8 @@ module.exports = (pathOrConfig, options) => {
     );
   };
 
-  if (disable) {
-    const pathAbsolute = resolve(callerPath, path);
-    const moduleBody = require(pathAbsolute);
+  if (cfg.disable) {
+    const moduleBody = require(cfg.path);
     recreateModuleBodyPromise();
     resolveModuleBody(moduleBody);
     apiRestart = () => {};
