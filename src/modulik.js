@@ -6,9 +6,15 @@ const getCallerFile = require('get-caller-file');
 const { v4 } = require('uuid');
 
 const childPath = path.resolve(__dirname, 'child.js');
-const createLogger = (moduleName, quiet) => message => {
-  if (quiet) return;
-  console.info(`[modulik]: ${moduleName} - ${message}`);
+const createLogger = (moduleName, quiet) => {
+  const makeMethod = loggingFunction => message => {
+    if (quiet) return;
+    loggingFunction(`[modulik]: ${moduleName} - ${message}`);
+  };
+  return {
+    info: makeMethod(console.info),
+    error: makeMethod(console.error),
+  };
 };
 
 const configDefaults = {
@@ -19,7 +25,7 @@ const configDefaults = {
 
 const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
   const moduleFileName = path.parse(cfg.path).base;
-  const log = createLogger(moduleFileName, cfg.quiet);
+  const logger = createLogger(moduleFileName, cfg.quiet);
   const pathAbsolute = path.resolve(callerPath, cfg.path);
   const pathsToWatchOn = [
     pathAbsolute,
@@ -54,7 +60,7 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
       moduleBody = (...args) =>
         new Promise((resolve, reject) => {
           if (moduleKilled) {
-            reject(new Error('Module is killed, cannot execute'));
+            reject(new Error('Cannot execute killed module'));
             return;
           }
 
@@ -100,7 +106,7 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
           moduleReady = true;
           onReady(moduleBody);
           resolve();
-          log('Ready.');
+          logger.info('Ready.');
           sendBufferedMessagesToModule();
           return;
         }
@@ -130,7 +136,11 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
     });
 
   const restartChild = async () => {
-    log('Restarting..');
+    if (moduleKilled) {
+      logger.error('Module killed - cannot restart');
+      return;
+    }
+    logger.info('Restarting..');
     onRestart();
     await stopChild();
     await runChild();
@@ -167,15 +177,20 @@ const fileExtensions = ['js', 'json'];
 
 module.exports = (pathOrOptions, options) => {
   const callerPath = path.dirname(getCallerFile());
-  const pathAbsolute = path.resolve(
-    callerPath,
-    typeof pathOrOptions === 'string' ? pathOrOptions : pathOrOptions.path,
-  );
+  let providedPath = pathOrOptions;
+  if (typeof pathOrOptions === 'object') {
+    providedPath = pathOrOptions.path;
+  }
+  if (typeof options === 'object' && Boolean(options.path)) {
+    providedPath = options.path;
+  }
+  const pathAbsolute = path.resolve(callerPath, providedPath);
   let cfg = Object.assign(
     {},
     configDefaults,
-    { path: pathAbsolute },
+    typeof pathOrOptions === 'object' ? pathOrOptions : {},
     typeof options === 'object' ? options : {},
+    { path: pathAbsolute },
   );
 
   if (!cfg.path) {
