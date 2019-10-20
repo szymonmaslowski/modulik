@@ -13,7 +13,7 @@ describe('the module', () => {
     expect(modulik).toEqual(expect.any(Function));
   });
   it('accepts module path option as first argument', async done => {
-    const moduleWatched = modulik('./resources/number-module.js');
+    const moduleWatched = modulik('./resources/number-module');
     const exposedModule = await moduleWatched.module;
     expect(exposedModule).toEqual(1);
     await moduleWatched.kill();
@@ -72,7 +72,7 @@ describe('the module', () => {
   });
   it('allows for absolute path to module', async done => {
     const filePath = resolve(__dirname, 'resources/fs-module.txt');
-    const modulePath = resolve(__dirname, 'resources/fs-module.js');
+    const modulePath = resolve(__dirname, 'resources/fs-module');
 
     const moduleWatched1 = modulik(modulePath);
     await moduleWatched1.module;
@@ -102,27 +102,27 @@ describe('the module', () => {
     done();
   });
   it('creates object', async done => {
-    const moduleWatched = modulik('./resources/number-module.js');
+    const moduleWatched = modulik('./resources/number-module');
     expect(moduleWatched).toEqual(expect.any(Object));
     await moduleWatched.kill();
     done();
   });
   it('exposes "module" property on created object', async done => {
-    const moduleWatched = modulik('./resources/number-module.js');
+    const moduleWatched = modulik('./resources/number-module');
     expect(moduleWatched).toHaveProperty('module');
     expect(moduleWatched.module).toEqual(expect.any(Promise));
     await moduleWatched.kill();
     done();
   });
   it('exposes "restart" method on created object', async done => {
-    const moduleWatched = modulik('./resources/number-module.js');
+    const moduleWatched = modulik('./resources/number-module');
     expect(moduleWatched).toHaveProperty('restart');
     expect(moduleWatched.restart).toEqual(expect.any(Function));
     await moduleWatched.kill();
     done();
   });
   it('exposes "kill" method on created object', async done => {
-    const moduleWatched = modulik('./resources/number-module.js');
+    const moduleWatched = modulik('./resources/number-module');
     expect(moduleWatched).toHaveProperty('kill');
     expect(moduleWatched.restart).toEqual(expect.any(Function));
     await moduleWatched.kill();
