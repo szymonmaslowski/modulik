@@ -12,7 +12,7 @@
     "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
   },
   "scripts": {
-    "test": "jest --runInBand",
+    "test": "mocha test/*.spec.js",
     "start": "nodemon -q -w src -x \"yarn --cwd example start\""
   },
   "dependencies": {
@@ -31,8 +31,8 @@
     "eslint-plugin-prettier": "^3.1.0",
     "eslint-plugin-react": "^7.14.2",
     "husky": "^3.0.0",
-    "jest": "^24.8.0",
     "lint-staged": "^9.0.2",
+    "mocha": "^6.2.2",
     "nodemon": "^1.19.1",
     "prettier": "^1.18.2",
     "rimraf": "^2.6.3"

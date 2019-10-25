@@ -33,6 +33,7 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
   ];
 
   let child = null;
+  let currentModuleBody = null;
   let moduleReady = false;
   let moduleReadyPromise = null;
   let moduleKilled = false;
@@ -50,44 +51,49 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
   const resolveModuleInvocation = ({ correlationId, result }) => {
     const data = result.error ? undefined : result.data;
     const error = result.error ? new Error(result.data) : undefined;
-    childModuleInvocationsCallbacks.get(correlationId)(data, error);
+    childModuleInvocationsCallbacks.get(correlationId)(error, data);
     childModuleInvocationsCallbacks.delete(correlationId);
   };
 
-  const resolveModule = (type, body) => {
-    let moduleBody = body;
-    if (type === 'function') {
-      moduleBody = (...args) =>
-        new Promise((resolve, reject) => {
-          if (moduleKilled) {
-            reject(new Error('Cannot execute killed module'));
-            return;
-          }
+  const moduleBodyOfFunctionType = (...args) =>
+    new Promise((resolve, reject) => {
+      if (moduleKilled) {
+        reject(new Error('Cannot execute killed module'));
+        return;
+      }
+      // when former module was of function type
+      // and after file change it is not a function anymore
+      // but still there is a attempt to execute the former module
+      if (moduleReady && typeof currentModuleBody !== 'function') {
+        reject(
+          new Error(
+            `Cannot execute module of ${typeof currentModuleBody} type`,
+          ),
+        );
+        return;
+      }
 
-          const correlationId = v4();
-          const onModuleFinishedExecution = (data, error) => {
-            if (error) {
-              reject(error);
-              return;
-            }
-            resolve(data);
-          };
-          childModuleInvocationsCallbacks.set(
-            correlationId,
-            onModuleFinishedExecution,
-          );
-          bufferOfMessagesToModule.add({
-            type: 'invoke',
-            correlationId,
-            args,
-          });
-          if (moduleReady) {
-            sendBufferedMessagesToModule();
-          }
-        });
-    }
-    return moduleBody;
-  };
+      const correlationId = v4();
+      const onModuleFinishedExecution = (error, data) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(data);
+      };
+      childModuleInvocationsCallbacks.set(
+        correlationId,
+        onModuleFinishedExecution,
+      );
+      bufferOfMessagesToModule.add({
+        type: 'invoke',
+        correlationId,
+        args,
+      });
+      if (moduleReady) {
+        sendBufferedMessagesToModule();
+      }
+    });
 
   const runChild = () => {
     moduleReadyPromise = new Promise(resolve => {
@@ -102,12 +108,32 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
           }
 
           const { type, body } = message.data;
-          const moduleBody = resolveModule(type, body);
+          if (type === 'function') {
+            currentModuleBody = moduleBodyOfFunctionType;
+          } else {
+            currentModuleBody = body;
+          }
           moduleReady = true;
-          onReady(moduleBody);
+          onReady(currentModuleBody);
           resolve();
           logger.info('Ready.');
-          sendBufferedMessagesToModule();
+          if (type === 'function') {
+            sendBufferedMessagesToModule();
+          } else if (bufferOfMessagesToModule.size) {
+            bufferOfMessagesToModule.forEach(({ correlationId }) => {
+              resolveModuleInvocation({
+                correlationId,
+                result: {
+                  error: true,
+                  data: 'Module is not a function. Cannot execute.',
+                },
+              });
+            });
+            bufferOfMessagesToModule.clear();
+            logger.error(
+              'There were executions buffered, but the module is not a function anymore. Buffered executions has been forgotten.',
+            );
+          }
           return;
         }
 
@@ -129,9 +155,9 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
   const stopChild = () =>
     new Promise(resolve => {
       child.on('exit', () => {
-        moduleReady = false;
         resolve();
       });
+      moduleReady = false;
       child.kill();
     });
 

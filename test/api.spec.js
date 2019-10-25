@@ -1,140 +1,150 @@
+const assert = require('assert');
 const { resolve } = require('path');
-const { existsSync, readFileSync, writeFileSync } = require('fs');
+const { existsSync, readFileSync } = require('fs');
 const rimraf = require('rimraf');
 const modulik = require('..');
+const { spyOn, writeFileAndWait, scheduler } = require('./utils');
 
-const wait = ms =>
-  new Promise(resolvePromise => {
-    setTimeout(resolvePromise, ms);
-  });
-
-describe('the module', () => {
-  it('is of function type', () => {
-    expect(modulik).toEqual(expect.any(Function));
-  });
-  it('accepts module path option as first argument', async done => {
-    const moduleWatched = modulik('./resources/number-module.js');
-    const exposedModule = await moduleWatched.module;
-    expect(exposedModule).toEqual(1);
+afterEach(async () => {
+  await scheduler.run();
+});
+it('is of function type', () => {
+  assert.deepStrictEqual(modulik instanceof Function, true);
+});
+it('accepts module path option as first argument', async () => {
+  const moduleWatched = modulik('./resources/number-module');
+  scheduler.add(async () => {
     await moduleWatched.kill();
-    done();
   });
-  it('accepts options object as first argument', async done => {
-    const moduleWatched = modulik({ path: './resources/number-module.js' });
-    const exposedModule = await moduleWatched.module;
-    expect(exposedModule).toEqual(1);
+  const exposedModule = await moduleWatched.module;
+  assert.deepStrictEqual(exposedModule, 1);
+});
+it('accepts options object as first argument', async () => {
+  const moduleWatched = modulik({ path: './resources/number-module.js' });
+  scheduler.add(async () => {
     await moduleWatched.kill();
-    done();
   });
-  it('prioritises options object provided as second argument', async done => {
-    const filePath = resolve(__dirname, 'resources/fs-module.txt');
-    const module1Path = resolve(__dirname, 'resources/object-module.js');
-    const module2Path = resolve(__dirname, 'resources/empty-module.js');
-    const module1Content = readFileSync(module1Path, 'utf-8');
-    const module2Content = readFileSync(module2Path, 'utf-8');
-    const spy = jest.spyOn(console, 'info');
-    rimraf.sync(filePath);
+  const exposedModule = await moduleWatched.module;
+  assert.deepStrictEqual(exposedModule, 1);
+});
+it('prioritises options object provided as second argument', async () => {
+  const filePath = resolve(__dirname, 'resources/fs-module.txt');
+  const module1Path = resolve(__dirname, 'resources/object-module.js');
+  const module2Path = resolve(__dirname, 'resources/empty-module.js');
+  const module1Content = readFileSync(module1Path, 'utf-8');
+  const module2Content = readFileSync(module2Path, 'utf-8');
+  const spy = spyOn(console, 'info');
+  rimraf.sync(filePath);
 
-    const moduleWatched = modulik(
-      {
-        path: './resources/number-module',
-        watch: [module1Path],
-        disable: true,
-        quiet: true,
-      },
-      {
-        path: './resources/fs-module',
-        watch: [module2Path],
-        disable: false,
-        quiet: false,
-      },
-    );
-    const exposedModule = await moduleWatched.module;
+  const moduleWatched = modulik(
+    {
+      path: './resources/number-module',
+      watch: [module1Path],
+      disable: true,
+      quiet: true,
+    },
+    {
+      path: './resources/fs-module',
+      watch: [module2Path],
+      disable: false,
+      quiet: false,
+    },
+  );
 
-    expect(exposedModule).toEqual({});
-    expect(existsSync(filePath)).toBeTruthy();
-    rimraf.sync(filePath);
-    writeFileSync(module1Path, `${module1Content}\n`);
-    await wait(1000);
-    await moduleWatched.module;
-    expect(existsSync(filePath)).not.toBeTruthy();
-    writeFileSync(module2Path, `${module2Content}\n`);
-    await wait(1000);
-    await moduleWatched.module;
-    expect(existsSync(filePath)).toBeTruthy();
-    expect(spy).toHaveBeenCalledTimes(3);
-
+  scheduler.add(async () => {
+    spy.free();
     await moduleWatched.kill();
     rimraf.sync(filePath);
-    writeFileSync(module1Path, module1Content);
-    writeFileSync(module2Path, module2Content);
-    done();
+    await writeFileAndWait(module1Path, module1Content);
+    await writeFileAndWait(module2Path, module2Content);
   });
-  it('allows for absolute path to module', async done => {
-    const filePath = resolve(__dirname, 'resources/fs-module.txt');
-    const modulePath = resolve(__dirname, 'resources/fs-module.js');
 
-    const moduleWatched1 = modulik(modulePath);
-    await moduleWatched1.module;
-    expect(existsSync(filePath)).toBeTruthy();
+  const exposedModule = await moduleWatched.module;
+  assert.deepStrictEqual(exposedModule, {});
+  assert.deepStrictEqual(existsSync(filePath), true);
 
-    rimraf.sync(filePath);
-    const moduleWatched2 = modulik({ path: modulePath });
-    await moduleWatched2.module;
-    expect(existsSync(filePath)).toBeTruthy();
+  rimraf.sync(filePath);
+  await writeFileAndWait(module1Path, `${module1Content}\n`);
+  await moduleWatched.module;
+  assert.deepStrictEqual(existsSync(filePath), false);
 
+  await writeFileAndWait(module2Path, `${module2Content}\n`);
+  await moduleWatched.module;
+  assert.deepStrictEqual(existsSync(filePath), true);
+  assert.deepStrictEqual(spy.calls.length, 3);
+});
+it('allows for absolute path to module', async () => {
+  const filePath = resolve(__dirname, 'resources/fs-module.txt');
+  const modulePath = resolve(__dirname, 'resources/fs-module');
+
+  const moduleWatched1 = modulik(modulePath);
+  scheduler.add(async () => {
     rimraf.sync(filePath);
     await moduleWatched1.kill();
-    await moduleWatched2.kill();
-    done();
   });
-  it('allows to skip extension in module path when the file has js or json extension', async done => {
-    const numberModulik = modulik('./resources/number-module');
-    const jsonModulik = modulik('./resources/json-module');
+  await moduleWatched1.module;
+  assert.deepStrictEqual(existsSync(filePath), true);
 
-    const numberModuleValue = await numberModulik.module;
-    const jsonModuleValue = await jsonModulik.module;
-    expect(numberModuleValue).toEqual(1);
-    expect(jsonModuleValue).toEqual({ example: 'json' });
+  rimraf.sync(filePath);
+  const moduleWatched2 = modulik({ path: modulePath });
+  scheduler.add(async () => {
+    rimraf.sync(filePath);
+    await moduleWatched2.kill();
+  });
+  await moduleWatched2.module;
+  assert.deepStrictEqual(existsSync(filePath), true);
+});
+it('allows to skip extension in module path when the file has js or json extension', async () => {
+  const numberModulik = modulik('./resources/number-module');
+  const jsonModulik = modulik('./resources/json-module');
 
+  scheduler.add(async () => {
     await numberModulik.kill();
     await jsonModulik.kill();
-    done();
   });
-  it('creates object', async done => {
-    const moduleWatched = modulik('./resources/number-module.js');
-    expect(moduleWatched).toEqual(expect.any(Object));
-    await moduleWatched.kill();
-    done();
-  });
-  it('exposes "module" property on created object', async done => {
-    const moduleWatched = modulik('./resources/number-module.js');
-    expect(moduleWatched).toHaveProperty('module');
-    expect(moduleWatched.module).toEqual(expect.any(Promise));
-    await moduleWatched.kill();
-    done();
-  });
-  it('exposes "restart" method on created object', async done => {
-    const moduleWatched = modulik('./resources/number-module.js');
-    expect(moduleWatched).toHaveProperty('restart');
-    expect(moduleWatched.restart).toEqual(expect.any(Function));
-    await moduleWatched.kill();
-    done();
-  });
-  it('exposes "kill" method on created object', async done => {
-    const moduleWatched = modulik('./resources/number-module.js');
-    expect(moduleWatched).toHaveProperty('kill');
-    expect(moduleWatched.restart).toEqual(expect.any(Function));
-    await moduleWatched.kill();
-    done();
-  });
-  it('provides promise api for executing function-type module', async done => {
-    const funcModulik = modulik('./resources/function-module');
 
-    const func = await funcModulik.module;
-    expect(func()).toEqual(expect.any(Promise));
+  const numberModuleValue = await numberModulik.module;
+  const jsonModuleValue = await jsonModulik.module;
 
+  assert.deepStrictEqual(numberModuleValue, 1);
+  assert.deepStrictEqual(jsonModuleValue, { example: 'json' });
+});
+it('creates object', async () => {
+  const moduleWatched = modulik('./resources/number-module');
+  scheduler.add(async () => {
+    await moduleWatched.kill();
+  });
+  assert.deepStrictEqual(moduleWatched instanceof Object, true);
+});
+it('exposes "module" property on created object', async () => {
+  const moduleWatched = modulik('./resources/number-module');
+  scheduler.add(async () => {
+    await moduleWatched.kill();
+  });
+  assert.deepStrictEqual(Boolean(moduleWatched.module), true);
+  assert.deepStrictEqual(moduleWatched.module instanceof Promise, true);
+});
+it('exposes "restart" method on created object', async () => {
+  const moduleWatched = modulik('./resources/number-module');
+  scheduler.add(async () => {
+    await moduleWatched.kill();
+  });
+  assert.deepStrictEqual(Boolean(moduleWatched.restart), true);
+  assert.deepStrictEqual(moduleWatched.restart instanceof Function, true);
+});
+it('exposes "kill" method on created object', async () => {
+  const moduleWatched = modulik('./resources/number-module');
+  scheduler.add(async () => {
+    await moduleWatched.kill();
+  });
+  assert.deepStrictEqual(Boolean(moduleWatched.kill), true);
+  assert.deepStrictEqual(moduleWatched.kill instanceof Function, true);
+});
+it('provides promise api for executing function-type module', async () => {
+  const funcModulik = modulik('./resources/function-module');
+  scheduler.add(async () => {
     await funcModulik.kill();
-    done();
   });
+  const func = await funcModulik.module;
+  assert.deepStrictEqual(func() instanceof Promise, true);
 });
