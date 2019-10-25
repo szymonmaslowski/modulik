@@ -51,7 +51,7 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
   const resolveModuleInvocation = ({ correlationId, result }) => {
     const data = result.error ? undefined : result.data;
     const error = result.error ? new Error(result.data) : undefined;
-    childModuleInvocationsCallbacks.get(correlationId)(data, error);
+    childModuleInvocationsCallbacks.get(correlationId)(error, data);
     childModuleInvocationsCallbacks.delete(correlationId);
   };
 
@@ -74,7 +74,7 @@ const launchWatcher = ({ cfg, callerPath, onRestart, onReady }) => {
       }
 
       const correlationId = v4();
-      const onModuleFinishedExecution = (data, error) => {
+      const onModuleFinishedExecution = (error, data) => {
         if (error) {
           reject(error);
           return;
