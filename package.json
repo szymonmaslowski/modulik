@@ -5,6 +5,18 @@
   "repository": "fredZgred/modulik",
   "license": "MIT",
   "author": "Szymon Maslowski <i.am.szymon.maslowski@gmail.com>",
+  "keywords": [
+    "monitor",
+    "restart",
+    "watcher",
+    "module",
+    "submodule",
+    "node",
+    "server",
+    "file",
+    "system",
+    "process"
+  ],
   "files": [
     "src"
   ],
