@@ -6,7 +6,7 @@ const modulik = require('../../');
 const webpackConfig = require('../webpack.config');
 
 const ssrModulik = modulik('./ssr', {
-  watch: ['./App.jsx'],
+  watch: ['./App'],
   disable: process.env.NODE_ENV === 'production',
 });
 

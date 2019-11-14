@@ -18,7 +18,7 @@ module.exports = ({ title }) => {
 </head>
 <body>
   <div id="root">${appMarkup}</div>
-  <script src="client.js" />
+  <script src="client.js"></script>
 </body>
 </html>
 `;
