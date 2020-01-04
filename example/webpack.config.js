@@ -1,14 +1,14 @@
 const { resolve } = require('path');
 
 const srcDir = resolve(__dirname, 'src');
-const distDir = resolve(__dirname, 'dist/client');
+const outDir = resolve(__dirname, 'dist/static');
 
 module.exports = {
   mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
   entry: resolve(srcDir, 'client.jsx'),
   output: {
     filename: 'client.js',
-    path: distDir,
+    path: outDir,
   },
   module: {
     rules: [

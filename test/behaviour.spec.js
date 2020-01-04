@@ -1,9 +1,14 @@
 const assert = require('assert');
 const path = require('path');
 const { existsSync, readFileSync, appendFileSync } = require('fs');
-const rimraf = require('rimraf');
 const modulik = require('..');
-const { wait, spyOn, scheduler, writeFileAndWait } = require('./utils');
+const {
+  wait,
+  spyOn,
+  scheduler,
+  writeFileAndWait,
+  deleteFileAndWait,
+} = require('./utils');
 
 afterEach(async () => {
   await scheduler.run();
@@ -101,6 +106,19 @@ it('executes with minimal params with no problems', async () => {
     }
   });
 });
+it('throws when accessing module if there is no module under provided path', async () => {
+  const invalidModulik = modulik('/invalid/module/path');
+  scheduler.add(async () => {
+    await invalidModulik.kill();
+  });
+  try {
+    await invalidModulik.module;
+  } catch (e) {
+    assert.deepStrictEqual(e.message, 'Module exited unexpectedly');
+    return;
+  }
+  throw new Error('Module did not throw');
+});
 it('disables logging when quiet property of options is set to true', async () => {
   const spy = spyOn(console, 'info');
   const moduleWatched1 = modulik('./resources/number-module.js', {
@@ -119,104 +137,149 @@ it('disables logging when quiet property of options is set to true', async () =>
   assert.deepStrictEqual(spy.calls.length, 0);
 });
 it('disables watching and restarting when disable option is set to true', async () => {
-  const filePath = path.resolve(__dirname, 'resources/fs-module.txt');
+  const fsArtifactPath = path.resolve(__dirname, 'resources/fs-artifact.txt');
   const modulePath = path.resolve(__dirname, 'resources/fs-module.js');
   const moduleContent = readFileSync(modulePath, 'utf-8');
-  const moduleWatched1 = modulik(modulePath, { disable: true });
+  const moduleWatched1 = modulik(modulePath, { disabled: true });
   scheduler.add(async () => {
-    rimraf.sync(filePath);
+    await deleteFileAndWait(fsArtifactPath);
     await moduleWatched1.kill();
     await writeFileAndWait(modulePath, moduleContent);
   });
 
   await moduleWatched1.module;
-  rimraf.sync(filePath);
+  await deleteFileAndWait(fsArtifactPath);
   await writeFileAndWait(modulePath, `${moduleContent}\n`);
   await moduleWatched1.module;
 
-  assert.deepStrictEqual(existsSync(filePath), false);
+  assert.deepStrictEqual(existsSync(fsArtifactPath), false);
 
-  const moduleWatched2 = modulik({ path: modulePath, disable: true });
+  const moduleWatched2 = modulik({ path: modulePath, disabled: true });
   scheduler.add(async () => {
     await moduleWatched2.kill();
   });
 
   await moduleWatched2.module;
-  rimraf.sync(filePath);
+  await deleteFileAndWait(fsArtifactPath);
   await writeFileAndWait(modulePath, moduleContent);
   await moduleWatched2.module;
-
-  assert.deepStrictEqual(existsSync(filePath), false);
+  assert.deepStrictEqual(existsSync(fsArtifactPath), false);
 });
 it('restarts module on changes to the file', async () => {
-  const filePath = path.resolve(__dirname, 'resources/fs-module.txt');
+  const fsArtifactPath = path.resolve(__dirname, 'resources/fs-artifact.txt');
   const modulePath = path.resolve(__dirname, 'resources/fs-module.js');
   const moduleContent = readFileSync(modulePath, 'utf-8');
   const moduleWatched = modulik(modulePath);
   scheduler.add(async () => {
-    rimraf.sync(filePath);
+    await deleteFileAndWait(fsArtifactPath);
     await moduleWatched.kill();
     await writeFileAndWait(modulePath, moduleContent);
   });
 
   await moduleWatched.module;
-  rimraf.sync(filePath);
+  await deleteFileAndWait(fsArtifactPath);
   await writeFileAndWait(modulePath, `${moduleContent}\n`);
   await moduleWatched.module;
 
-  assert.deepStrictEqual(existsSync(filePath), true);
+  assert.deepStrictEqual(existsSync(fsArtifactPath), true);
 });
-it('restarts module on changes to files under paths provided by watch option', async () => {
-  const filePath = path.resolve(__dirname, 'resources/fs-module.txt');
-  const module1Path = './resources/empty-module.js';
-  const module1FullPath = path.resolve(__dirname, module1Path);
-  const module2Path = path.resolve(__dirname, 'resources/function-module.js');
-  const module1Content = readFileSync(module1FullPath, 'utf-8');
-  const module2Content = readFileSync(module2Path, 'utf-8');
-  const moduleWatched = modulik('./resources/fs-module.js', {
-    watch: [module1Path, module2Path],
-  });
+it('throws when accessing a module if that module throws after a file change', async () => {
+  const modulePath = path.resolve(__dirname, 'resources/number-module.js');
+  const moduleContent = readFileSync(modulePath, 'utf-8');
+  const numberModulik = modulik(modulePath);
   scheduler.add(async () => {
-    rimraf.sync(filePath);
-    await moduleWatched.kill();
-    await writeFileAndWait(module1FullPath, module1Content);
+    await numberModulik.kill();
+    await writeFileAndWait(modulePath, moduleContent);
   });
 
-  await moduleWatched.module;
-  rimraf.sync(filePath);
-  await writeFileAndWait(module1FullPath, `${module1Content}\n`);
-  await moduleWatched.module;
-
-  assert.deepStrictEqual(existsSync(filePath), true);
-
-  rimraf.sync(filePath);
+  await numberModulik.module;
+  await writeFileAndWait(modulePath, "throw new Error('Cannot execute');");
+  try {
+    await numberModulik.module;
+  } catch (e) {
+    assert.deepStrictEqual(e.message, 'Module exited unexpectedly');
+    return;
+  }
+  throw new Error('Module did not throw');
+});
+it('throws when accessing a module if the file of that module has been deleted', async () => {
+  const modulePath = path.resolve(__dirname, 'resources/number-module.js');
+  const moduleContent = readFileSync(modulePath, 'utf-8');
+  const numberModulik = modulik(modulePath);
   scheduler.add(async () => {
-    await writeFileAndWait(module2Path, module2Content);
+    await numberModulik.kill();
+    await writeFileAndWait(modulePath, moduleContent);
   });
-  await writeFileAndWait(module2Path, `${module2Content}\n`);
-  await moduleWatched.module;
 
-  assert.deepStrictEqual(existsSync(filePath), true);
+  await numberModulik.module;
+  await deleteFileAndWait(modulePath);
+  try {
+    await numberModulik.module;
+  } catch (e) {
+    assert.deepStrictEqual(e.message, 'Module exited unexpectedly');
+    return;
+  }
+  throw new Error('Module did not throw');
+});
+[
+  {
+    watchItem: './resources/nested/module.js',
+    name: 'relative path',
+  },
+  {
+    watchItem: path.resolve(__dirname, 'resources/nested/module.js'),
+    name: 'absolute path',
+  },
+  {
+    watchItem: './resources/nested',
+    name: 'directory path',
+  },
+  // {
+  //   watchItem: './resources/nested/*.js',
+  //   name: 'glob',
+  // },
+].forEach(({ watchItem, name }) => {
+  it(`restarts module on changes to watched files when watching on ${name}`, async () => {
+    const fsArtifactPath = path.resolve(__dirname, 'resources/fs-artifact.txt');
+    const modulePath = path.resolve(__dirname, 'resources/nested/module.js');
+    const moduleContent = readFileSync(modulePath, 'utf-8');
+
+    const moduleWatched = modulik('./resources/fs-module.js', {
+      watch: [watchItem],
+    });
+    scheduler.add(async () => {
+      await deleteFileAndWait(fsArtifactPath);
+      await moduleWatched.kill();
+      await writeFileAndWait(modulePath, moduleContent);
+    });
+
+    await moduleWatched.module;
+    await deleteFileAndWait(fsArtifactPath);
+    await writeFileAndWait(modulePath, `${moduleContent}\n`);
+    await moduleWatched.module;
+
+    assert.deepStrictEqual(existsSync(fsArtifactPath), true);
+  });
 });
 it('restarts module when "restart" method was invoked', async () => {
-  const filePath = path.resolve(__dirname, 'resources/fs-module.txt');
-  rimraf.sync(filePath);
+  const fsArtifactPath = path.resolve(__dirname, 'resources/fs-artifact.txt');
+  await deleteFileAndWait(fsArtifactPath);
   const moduleWatched = modulik('./resources/fs-module');
   scheduler.add(async () => {
-    rimraf.sync(filePath);
+    await deleteFileAndWait(fsArtifactPath);
     await moduleWatched.kill();
   });
 
   await moduleWatched.module;
-  rimraf.sync(filePath);
+  await deleteFileAndWait(fsArtifactPath);
   await moduleWatched.restart();
   await moduleWatched.module;
 
-  assert.deepStrictEqual(existsSync(filePath), true);
+  assert.deepStrictEqual(existsSync(fsArtifactPath), true);
 });
-it('allows to call "restart" method even when disable option is set to true', async () => {
+it('allows to call "restart" method even when disabled option is set to true', async () => {
   const moduleWatched = modulik('./resources/number-module.js', {
-    disable: true,
+    disabled: true,
   });
   scheduler.add(async () => {
     await moduleWatched.kill();
@@ -229,21 +292,34 @@ it('allows to call "restart" method even when module is already killed', async (
   await moduleWatched.kill();
   await moduleWatched.restart();
 });
-it('allows to access killed module', async () => {
+it('allows to access killed module if module was accessible before', async () => {
+  const moduleWatched = modulik('./resources/number-module');
+  await moduleWatched.module;
+  await moduleWatched.kill();
+
+  try {
+    await moduleWatched.module;
+  } catch (e) {
+    throw new Error('Module threw');
+  }
+});
+it('throws when accessing killed module if module was not accessible before', async () => {
   const moduleWatched = modulik('./resources/number-module');
   await moduleWatched.kill();
 
   try {
     await moduleWatched.module;
   } catch (e) {
-    throw new Error('Module thrown');
+    assert.deepStrictEqual(e.message, 'Module unavailable');
+    return;
   }
+  throw new Error('Module did not throw');
 });
 it('throws when executing killed module', async () => {
   const moduleWatched = modulik('./resources/function-module');
+  const moduleBody = await moduleWatched.module;
   await moduleWatched.kill();
   try {
-    const moduleBody = await moduleWatched.module;
     await moduleBody();
   } catch (e) {
     assert.deepStrictEqual(e.message, 'Cannot execute killed module');
@@ -252,14 +328,14 @@ it('throws when executing killed module', async () => {
   throw new Error('Module did not throw');
 });
 it('causes module to stop watching for changes when "kill" method was invoked', async () => {
-  const filePath = path.resolve(__dirname, 'resources/fs-module.txt');
+  const fsArtifactPath = path.resolve(__dirname, 'resources/fs-artifact.txt');
   const modulePath = path.resolve(__dirname, 'resources/fs-module.js');
   const moduleContent = readFileSync(modulePath, 'utf-8');
   const moduleWatched = modulik(modulePath);
   await moduleWatched.module;
-  rimraf.sync(filePath);
+  await deleteFileAndWait(fsArtifactPath);
   scheduler.add(async () => {
-    rimraf.sync(filePath);
+    await deleteFileAndWait(fsArtifactPath);
     await moduleWatched.kill();
     await writeFileAndWait(modulePath, moduleContent);
   });
@@ -268,7 +344,7 @@ it('causes module to stop watching for changes when "kill" method was invoked', 
   await writeFileAndWait(modulePath, `${moduleContent}\n`);
   await moduleWatched.module;
 
-  assert.deepStrictEqual(existsSync(filePath), false);
+  assert.deepStrictEqual(existsSync(fsArtifactPath), false);
 });
 it('allows to use same module representation function instance after module change', async () => {
   const modulePath = path.resolve(__dirname, 'resources/function-module.js');
