@@ -74,21 +74,26 @@ For more sophisticated usage example check out the [example](example) project.
 **modulik(options)**
 
  - `modulePath` *\<string>* Path to entry of the module. Specified file will be
- watched for changes 
+ watched for changes
  - `options` *\<Object>*
     - `path` *\<string>* Path to entry of the module. Equal to `modulePath`
     argument. If both provided then `path` option overrides the `modulePath`
     - `watch` *\<Array>* Additional list of files or directories to be watched
     for changes
-    - `disable` *\<boolean>* Disables functionality of watching for changes and
+    - `extensions` *\<Array>* List of non-standard extensions that will be
+    considered during watching for changes to files specified in `watch` option.
+    All standard node extensions are considered anyway, so you don't need to
+    specify e.g. *js* extension
+    - `disabled` *\<boolean>* Disables functionality of watching for changes and
     restarting, and just exposes the module. **Default:** `false`
     - `quiet` *\<boolean>* Disables logs. **Default:** `false`
  - Returns: <[ModuleWrapper](#ModuleWrapper)>
 
 ```js
 modulik('./path/to/module', {
-  watch: ['./path/to/related-module1', './path/to/related-module2'],
-  disable: PRODUCTION === true,
+  watch: ['./path/to/directory', '/absolute/path', './path/to/specific-module.js'],
+  extensions: ['jsx'],
+  disabled: PRODUCTION === true,
   quiet: true,
 });
 ```
