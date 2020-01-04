@@ -1,5 +1,6 @@
-const { writeFileSync } = require('fs');
+const { writeFileSync, existsSync, readFileSync } = require('fs');
 const chokidar = require('chokidar');
+const rimraf = require('rimraf');
 
 const wait = ms =>
   new Promise(resolve => {
@@ -41,11 +42,15 @@ const scheduler = {
 
 const writeFileAndWait = (path, content) =>
   new Promise(async resolve => {
+    if (existsSync(path) && readFileSync(path, 'utf-8') === content) {
+      resolve();
+      return;
+    }
     const fsWatcher = chokidar
       .watch(path, { ignoreInitial: true })
       .on('all', () => {
-        process.nextTick(() => {
-          fsWatcher.close();
+        process.nextTick(async () => {
+          await fsWatcher.close();
           resolve();
         });
       });
@@ -53,9 +58,29 @@ const writeFileAndWait = (path, content) =>
     writeFileSync(path, content);
   });
 
+const deleteFileAndWait = path =>
+  new Promise(async resolve => {
+    if (!existsSync(path)) {
+      resolve();
+      return;
+    }
+
+    const fsWatcher = chokidar
+      .watch(path, { ignoreInitial: true })
+      .on('unlink', () => {
+        process.nextTick(async () => {
+          await fsWatcher.close();
+          resolve();
+        });
+      });
+    await wait(10);
+    rimraf.sync(path);
+  });
+
 module.exports = {
   wait,
   spyOn,
   scheduler,
   writeFileAndWait,
+  deleteFileAndWait,
 };

@@ -6,7 +6,8 @@ const modulik = require('../../');
 const webpackConfig = require('../webpack.config');
 
 const ssrModulik = modulik('./ssr', {
-  watch: ['./App.jsx'],
+  watch: ['./App'],
+  extensions: ['jsx'],
   disable: process.env.NODE_ENV === 'production',
 });
 
@@ -16,11 +17,11 @@ const app = express();
 const compiler = webpack(webpackConfig);
 
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(resolve('client')));
+  app.use(express.static(resolve(__dirname, 'static')));
 } else {
   app.use(webpackDevMiddleware(compiler, { stats: 'minimal' }));
 }
-app.use(/^\/$/, async (req, res) => {
+app.use(/^\/(index.html)?$/, async (req, res) => {
   const ssr = await ssrModulik.module;
   const response = await ssr({ title: 'Hello World' });
   res.send(response);

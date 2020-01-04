@@ -28,25 +28,25 @@ it('accepts options object as first argument', async () => {
   assert.deepStrictEqual(exposedModule, 1);
 });
 it('prioritises options object provided as second argument', async () => {
-  const filePath = resolve(__dirname, 'resources/fs-module.txt');
+  const fsArtifactPath = resolve(__dirname, 'resources/fs-artifact.txt');
   const module1Path = resolve(__dirname, 'resources/object-module.js');
   const module2Path = resolve(__dirname, 'resources/empty-module.js');
   const module1Content = readFileSync(module1Path, 'utf-8');
   const module2Content = readFileSync(module2Path, 'utf-8');
   const spy = spyOn(console, 'info');
-  rimraf.sync(filePath);
+  rimraf.sync(fsArtifactPath);
 
   const moduleWatched = modulik(
     {
       path: './resources/number-module',
       watch: [module1Path],
-      disable: true,
+      disabled: true,
       quiet: true,
     },
     {
       path: './resources/fs-module',
       watch: [module2Path],
-      disable: false,
+      disabled: false,
       quiet: false,
     },
   );
@@ -54,45 +54,45 @@ it('prioritises options object provided as second argument', async () => {
   scheduler.add(async () => {
     spy.free();
     await moduleWatched.kill();
-    rimraf.sync(filePath);
+    rimraf.sync(fsArtifactPath);
     await writeFileAndWait(module1Path, module1Content);
     await writeFileAndWait(module2Path, module2Content);
   });
 
   const exposedModule = await moduleWatched.module;
   assert.deepStrictEqual(exposedModule, {});
-  assert.deepStrictEqual(existsSync(filePath), true);
+  assert.deepStrictEqual(existsSync(fsArtifactPath), true);
 
-  rimraf.sync(filePath);
+  rimraf.sync(fsArtifactPath);
   await writeFileAndWait(module1Path, `${module1Content}\n`);
   await moduleWatched.module;
-  assert.deepStrictEqual(existsSync(filePath), false);
+  assert.deepStrictEqual(existsSync(fsArtifactPath), false);
 
   await writeFileAndWait(module2Path, `${module2Content}\n`);
   await moduleWatched.module;
-  assert.deepStrictEqual(existsSync(filePath), true);
+  assert.deepStrictEqual(existsSync(fsArtifactPath), true);
   assert.deepStrictEqual(spy.calls.length, 3);
 });
 it('allows for absolute path to module', async () => {
-  const filePath = resolve(__dirname, 'resources/fs-module.txt');
+  const fsArtifactPath = resolve(__dirname, 'resources/fs-artifact.txt');
   const modulePath = resolve(__dirname, 'resources/fs-module');
 
   const moduleWatched1 = modulik(modulePath);
   scheduler.add(async () => {
-    rimraf.sync(filePath);
+    rimraf.sync(fsArtifactPath);
     await moduleWatched1.kill();
   });
   await moduleWatched1.module;
-  assert.deepStrictEqual(existsSync(filePath), true);
+  assert.deepStrictEqual(existsSync(fsArtifactPath), true);
 
-  rimraf.sync(filePath);
+  rimraf.sync(fsArtifactPath);
   const moduleWatched2 = modulik({ path: modulePath });
   scheduler.add(async () => {
-    rimraf.sync(filePath);
+    rimraf.sync(fsArtifactPath);
     await moduleWatched2.kill();
   });
   await moduleWatched2.module;
-  assert.deepStrictEqual(existsSync(filePath), true);
+  assert.deepStrictEqual(existsSync(fsArtifactPath), true);
 });
 it('allows to skip extension in module path when the file has js or json extension', async () => {
   const numberModulik = modulik('./resources/number-module');
