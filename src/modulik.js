@@ -31,14 +31,13 @@ module.exports = (pathOrOptions, options) => {
   cfg.watch = (Array.isArray(providedConfig.watch) ? providedConfig.watch : [])
     .concat(providedConfig.path)
     .filter(isItFirstSuchItem)
-    .reduce(
-      (acc, filePathOrGlob) =>
-        acc.concat([
-          filePathOrGlob,
-          `${filePathOrGlob}.{${cfg.extensions.join(',')}}`,
-        ]),
-      [],
-    );
+    .reduce((acc, filePath) => {
+      const absolutePath = path.resolve(callerPath, filePath);
+      return acc.concat([
+        absolutePath,
+        `${absolutePath}.{${cfg.extensions.join(',')}}`,
+      ]);
+    }, []);
 
   let moduleBodyPromise = null;
   let resolveModuleBodyPromise = () => {};
