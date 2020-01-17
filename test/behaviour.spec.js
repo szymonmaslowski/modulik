@@ -221,6 +221,25 @@ it('throws when accessing a module if the file of that module has been deleted',
   }
   throw new Error('Module did not throw');
 });
+it('exposes a module after a restart if it is evaluable but was not before', async () => {
+  const modulePath = path.resolve(__dirname, 'resources/number-module.js');
+  const moduleContent = readFileSync(modulePath, 'utf-8');
+  await deleteFileAndWait(modulePath);
+  const numberModulik = modulik(modulePath);
+  scheduler.add(async () => {
+    await numberModulik.kill();
+    await writeFileAndWait(modulePath, moduleContent);
+  });
+
+  try {
+    await numberModulik.module;
+    // eslint-disable-next-line no-empty
+  } catch (e) {}
+
+  await writeFileAndWait(modulePath, moduleContent);
+  const exposedModule = await numberModulik.module;
+  assert.deepStrictEqual(exposedModule, 1);
+});
 [
   {
     watchItem: './resources/nested/module.js',
