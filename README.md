@@ -1,35 +1,23 @@
 # modulik
 
-**modulik** allows to restart single module independently from the rest of your application.
+**modulik** allows to restart a module independently from the rest of your application.
 
-Suppose you have a heavy server. You would like it to be restarted every change
-in order to see the result immediately, but it takes very long time to fully
-start it. Using modulik you are able to restart just particular part of
-your server keeping the rest up and running continuously.
+## Description
 
-**Example:** there is a node server that supports
-Server Side Rendering and uses webpack-dev-middleware. It starts
-via nodemon, so any change to the code restarts whole server.
+Suppose you have a complex node application and it takes some time for it to
+fully start. The development process of it starts to be pain in the arse, since
+every change to the code makes you wasting time on waiting for whole app to start.
+Using modulik you are able to restart just particular part of
+your application keeping the rest up and running continuously.
 
-**Problems:**
-1. every restart of server causes webpack-dev-middleware
-to recompile from scratch whole client-app (which could be time consuming)
-instead of just to apply a change.
-1. even if you change only client-app related file you still need to
-restart the server in order to consume new changes for SSR which leads
-to problem 1.
+> but there is nodemon..
 
-**Solution:** use modulik to 1) import SSR module, 2) specify App
-component to be watched for changes and 3) exclude SSR and App files from
-nodemon watching.
+The nodemon is awesome tool, but it doesn't solve some problems.
+Read [modulik vs nodemon](#modulik-vs-nodemon) section.
 
-**Result:**
-1. changes to SSR module don't restart whole server but only SSR module itself.
-1. changes to App component cause webpack-dev-middleware to just update
-client-app's assets because whole server was not restarted but rather only the
-SSR module.
-
-The above case you can find in the [example](example) project.
+Check out the [example](example) project to see **modulik** in action!
+It shows real life example of how to modulik can enhance the development
+experience of node server supporting SSR and serving assets of client app.
 
 ## Installation
 
@@ -59,7 +47,7 @@ setInterval(async () => {
 }, 1000);
 ```
 
-Every time `greet.js` file changes the app keeps running and only greet module
+Even if you change `greet.js` file the app keeps running and only greet module
 gets restarted. During the restart time module is not available, however
 its invocations (`greet('John')`) are queued and once the module is back
 they gets immediately executed.
@@ -142,3 +130,19 @@ try {
 ## Limitations
 
 to be written...
+
+## modulik vs nodemon
+
+You may think modulik is a clone of nodemon. Let me put you right..
+
+Both modulik and nodemon are able to restart module on changes. Primary usage
+of nodemon is the one via CLI, but you can use it also in runtime as importable
+module. Modulik on the other hand focuses only on runtime usage.
+
+The key advantage of modulik over nodemon is that it behaves like
+the `require` statement. **It exposes what's being exported by given module.**
+You can for instance have a module that exports a function. Import it using
+modulik to enhance it with the "nodemon-ity" (restarting on changes).
+
+Check out the [simple usage example](#simple-usage-example) or the
+[example](example) project to see modulik in action!
