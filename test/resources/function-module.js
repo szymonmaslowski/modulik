@@ -1,1 +1,1 @@
-module.exports = () => {};
+module.exports = (...args) => args.reverse().join(' ');
