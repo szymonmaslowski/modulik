@@ -102,12 +102,12 @@ describe('Function module execution', () => {
       'resources/buffering-test-log.txt',
     );
     const functionModulik = modulik(modulePath);
-    const func = await functionModulik.module;
     scheduler.add(async () => {
       await functionModulik.kill();
       await writeFileAndWait(modulePath, moduleContent);
       await writeFileAndWait(logFilePath, '');
     });
+    const func = await functionModulik.module;
 
     await writeFileAndWait(logFilePath, '');
     await writeFileAndWait(modulePath, `${moduleContent}\n`);
@@ -132,10 +132,10 @@ describe('Function module execution', () => {
     const moduleContent = readFileSync(modulePath, 'utf-8');
     await writeFileAndWait(modulePath, 'module.exports = () => {};');
     const functionModulik = modulik(modulePath);
-    const func = await functionModulik.module;
     scheduler.add(async () => {
       await functionModulik.kill();
     });
+    const func = await functionModulik.module;
 
     await writeFileAndWait(modulePath, moduleContent);
     // module is being evaluated by 600s.

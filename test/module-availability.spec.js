@@ -71,8 +71,10 @@ describe('Module availability', () => {
 
   it('allows to access killed module if module was accessible before', async () => {
     const moduleWatched = modulik('./resources/number-module');
+    scheduler.add(async () => {
+      await moduleWatched.kill();
+    });
     await moduleWatched.module;
-    await moduleWatched.kill();
 
     try {
       await moduleWatched.module;

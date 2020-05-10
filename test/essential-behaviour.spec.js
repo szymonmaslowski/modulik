@@ -77,10 +77,10 @@ describe('Essential behaviour', () => {
   ].forEach(({ typeName, precondition, fileName, matcher }) => {
     it(`exposes ${typeName} under "module" property when module ${precondition}`, async () => {
       const moduleWatched = modulik(`./resources/${fileName}`);
-      const exposedModule = await moduleWatched.module;
       scheduler.add(async () => {
         await moduleWatched.kill();
       });
+      const exposedModule = await moduleWatched.module;
 
       assert.deepStrictEqual(typeof exposedModule, matcher.type);
       if (matcher.value) {
@@ -95,10 +95,10 @@ describe('Essential behaviour', () => {
       const moduleWatched = modulik(`./resources/${fileName}`, {
         disable: true,
       });
-      const exposedModule = await moduleWatched.module;
       scheduler.add(async () => {
         await moduleWatched.kill();
       });
+      const exposedModule = await moduleWatched.module;
 
       assert.deepStrictEqual(typeof exposedModule, matcher.type);
       if (matcher.value) {
@@ -257,13 +257,13 @@ describe('Essential behaviour', () => {
     const modulePath = path.resolve(__dirname, 'resources/fs-module.js');
     const moduleContent = readFileSync(modulePath, 'utf-8');
     const moduleWatched = modulik(modulePath);
-    await moduleWatched.module;
-    await deleteFileAndWait(fsArtifactPath);
     scheduler.add(async () => {
       await deleteFileAndWait(fsArtifactPath);
       await moduleWatched.kill();
       await writeFileAndWait(modulePath, moduleContent);
     });
+    await moduleWatched.module;
+    await deleteFileAndWait(fsArtifactPath);
 
     await moduleWatched.kill();
     await writeFileAndWait(modulePath, `${moduleContent}\n`);
