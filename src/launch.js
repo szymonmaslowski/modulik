@@ -1,7 +1,7 @@
 const { fork } = require('child_process');
 const path = require('path');
 const chokidar = require('chokidar');
-const { v4 } = require('uuid');
+const { createChildController } = require('./bridge');
 
 const moduleStateIdle = 'moduleStateIdle';
 const moduleStateStarting = 'moduleStateStarting';
@@ -21,6 +21,7 @@ const createLogger = (moduleName, quiet) => {
 const launchFully = ({ cfg, onRestart, onReady, onError }) => {
   const moduleFileName = path.parse(cfg.path).base;
   const logger = createLogger(moduleFileName, cfg.quiet);
+  const childController = createChildController();
 
   let child = null;
   let fsWatcher = null;
@@ -28,22 +29,6 @@ const launchFully = ({ cfg, onRestart, onReady, onError }) => {
   let moduleState = moduleStateIdle;
   let moduleKilled = false;
   let changesDuringStart = false;
-
-  const bufferOfMessagesToModule = new Set();
-  const sendBufferedMessagesToModule = () => {
-    bufferOfMessagesToModule.forEach(message => {
-      child.send(message);
-    });
-    bufferOfMessagesToModule.clear();
-  };
-
-  const childModuleInvocationsCallbacks = new Map();
-  const resolveModuleInvocation = ({ correlationId, result }) => {
-    const data = result.error ? undefined : result.data;
-    const error = result.error ? new Error(result.data) : undefined;
-    childModuleInvocationsCallbacks.get(correlationId)(error, data);
-    childModuleInvocationsCallbacks.delete(correlationId);
-  };
 
   const moduleBodyOfFunctionType = (...args) =>
     new Promise((resolve, reject) => {
@@ -66,25 +51,17 @@ const launchFully = ({ cfg, onRestart, onReady, onError }) => {
         return;
       }
 
-      const correlationId = v4();
-      const onModuleFinishedExecution = (error, data) => {
+      childController.bufferInvocation(args, (error, data) => {
         if (error) {
           reject(error);
           return;
         }
         resolve(data);
-      };
-      childModuleInvocationsCallbacks.set(
-        correlationId,
-        onModuleFinishedExecution,
-      );
-      bufferOfMessagesToModule.add({
-        type: 'invoke',
-        correlationId,
-        args,
       });
       if (moduleState === moduleStateAccessible) {
-        sendBufferedMessagesToModule();
+        childController.releaseBufferedInvocations(message => {
+          child.send(message);
+        });
       }
     });
 
@@ -93,46 +70,47 @@ const launchFully = ({ cfg, onRestart, onReady, onError }) => {
     moduleState = moduleStateStarting;
 
     child = fork(childPath, [cfg.path]);
-    child.on('message', message => {
-      if (message.type === 'ready') {
-        if (changesDuringStart) {
-          changesDuringStart = false;
-          // eslint-disable-next-line no-use-before-define
-          restartChild();
-          return;
-        }
+    child.on(
+      'message',
+      childController.makeMessageHandler({
+        onInvocationResult({ correlationId, result }) {
+          childController.resolveInvocation({ correlationId, result });
+        },
+        onModuleReady({ data }) {
+          if (changesDuringStart) {
+            changesDuringStart = false;
+            // eslint-disable-next-line no-use-before-define
+            restartChild();
+            return;
+          }
 
-        const { type, body } = message.data;
-        currentModuleBody =
-          type === 'function' ? moduleBodyOfFunctionType : body;
+          const { type, body } = data;
+          currentModuleBody =
+            type === 'function' ? moduleBodyOfFunctionType : body;
 
-        moduleState = moduleStateAccessible;
-        onReady(currentModuleBody);
-        logger.info('Ready.');
+          moduleState = moduleStateAccessible;
+          onReady(currentModuleBody);
+          logger.info('Ready.');
 
-        if (type === 'function') {
-          sendBufferedMessagesToModule();
-        } else if (bufferOfMessagesToModule.size) {
-          const result = {
-            error: true,
-            data: 'Module is not a function. Cannot execute.',
-          };
-          bufferOfMessagesToModule.forEach(({ correlationId }) => {
-            resolveModuleInvocation({ correlationId, result });
-          });
-          bufferOfMessagesToModule.clear();
-          logger.error(
-            'There were executions buffered, but the module is not a function anymore. Buffered executions has been forgotten.',
-          );
-        }
-        return;
-      }
+          if (type === 'function') {
+            childController.releaseBufferedInvocations(message => {
+              child.send(message);
+            });
+            return;
+          }
 
-      if (message.type === 'invocation-result') {
-        const { correlationId, result } = message;
-        resolveModuleInvocation({ correlationId, result });
-      }
-    });
+          if (childController.areThereInvocationsBuffered()) {
+            childController.resolveAllInvocations({
+              error: true,
+              data: 'Module is not a function. Cannot execute.',
+            });
+            logger.error(
+              'There were executions buffered, but the module is not a function anymore. Buffered executions has been forgotten.',
+            );
+          }
+        },
+      }),
+    );
     child.on('exit', code => {
       const previousModuleState = moduleState;
       moduleState = moduleStateIdle;
