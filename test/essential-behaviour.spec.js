@@ -288,4 +288,30 @@ describe('Essential behaviour', () => {
     await moduleWatched.kill();
     await moduleWatched.restart();
   });
+
+  it('emits "restart" event when restart happens', async () => {
+    const numberModulik = modulik('./resources/number-module.js');
+    scheduler.add(async () => {
+      await numberModulik.kill();
+    });
+    let emitted = false;
+    numberModulik.on('restart', () => {
+      emitted = true;
+    });
+    await numberModulik.restart();
+    assert.deepStrictEqual(emitted, true);
+  });
+
+  it('emits "ready" event when module is ready', async () => {
+    const numberModulik = modulik('./resources/number-module.js');
+    scheduler.add(async () => {
+      await numberModulik.kill();
+    });
+    let emitted = false;
+    numberModulik.on('ready', () => {
+      emitted = true;
+    });
+    await numberModulik.module;
+    assert.deepStrictEqual(emitted, true);
+  });
 });
