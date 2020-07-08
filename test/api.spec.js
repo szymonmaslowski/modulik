@@ -1,4 +1,5 @@
 const assert = require('assert');
+const EventEmitter = require('events');
 const { resolve } = require('path');
 const { existsSync, readFileSync } = require('fs');
 const modulik = require('..');
@@ -127,6 +128,14 @@ describe('API', () => {
       await moduleWatched.kill();
     });
     assert.deepStrictEqual(moduleWatched instanceof Object, true);
+  });
+
+  it('created object is extends EventEmitter', async () => {
+    const moduleWatched = modulik('./resources/number-module');
+    scheduler.add(async () => {
+      await moduleWatched.kill();
+    });
+    assert.deepStrictEqual(moduleWatched instanceof EventEmitter, true);
   });
 
   it('exposes "module" property on created object', async () => {

@@ -1,3 +1,4 @@
+const EventEmitter = require('events');
 const path = require('path');
 const getCallerFile = require('get-caller-file');
 const launch = require('./launch');
@@ -42,6 +43,7 @@ module.exports = (pathOrOptions, options) => {
   let moduleBodyPromise = null;
   let resolveModuleBodyPromise = () => {};
   let rejectModuleBodyPromise = () => {};
+  const emitter = new EventEmitter();
 
   const recreateModuleBodyPromise = () => {
     moduleBodyPromise = new Promise((resolve, reject) => {
@@ -54,9 +56,11 @@ module.exports = (pathOrOptions, options) => {
 
   const onRestart = () => {
     recreateModuleBodyPromise();
+    emitter.emit('restart');
   };
   const onReady = moduleBody => {
     resolveModuleBodyPromise(moduleBody);
+    emitter.emit('ready');
   };
   const onError = error => {
     rejectModuleBodyPromise(error);
@@ -70,11 +74,14 @@ module.exports = (pathOrOptions, options) => {
     onError,
   });
 
-  return {
-    get module() {
-      return moduleBodyPromise;
+  return Object.setPrototypeOf(
+    {
+      get module() {
+        return moduleBodyPromise;
+      },
+      restart: async () => restart(),
+      kill: async () => kill(),
     },
-    restart: async () => restart(),
-    kill: async () => kill(),
-  };
+    emitter,
+  );
 };
