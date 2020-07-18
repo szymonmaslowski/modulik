@@ -1,19 +1,18 @@
 # modulik
 
-**modulik** allows to restart a module independently from the rest of your application.
+**modulik** allows to restart a module independently of the rest of your application.
 
 ## Description
 
-Suppose you have a complex node application and it takes some time for it to
+Suppose you have a complex node application, and it takes some time for it to
 fully start. The development process of it starts to be pain in the arse, since
-every change to the code makes you wasting time on waiting for whole app to start.
+every change to the code makes you wasting time on waiting for a whole app to start.
 Using modulik you are able to restart just particular part of
 your application keeping the rest up and running continuously.
 
 > but there is nodemon..
 
-The nodemon is awesome tool, but it doesn't solve some problems.
-Read [modulik vs nodemon](#modulik-vs-nodemon) section.
+Read [modulik vs nodemon](#modulik-vs-nodemon) section to learn why modulik isn't another nodemon.
 
 Check out the [example](example) project to see **modulik** in action!
 It shows real life example of how to modulik can enhance the development
@@ -88,6 +87,16 @@ modulik('./path/to/module', {
  
 ### ModuleWrapper
 
+ - Extends <[EventEmitter](https://nodejs.org/api/events.html)>
+
+**Event: 'restart'**
+
+Emitted when restarting of module has begun.
+
+**Event: 'ready'**
+
+Emitted when module has been parsed and is ready to access.
+
 **ModuleWrapper.module**
 
  - Returns: \<Promise\<module>>
@@ -96,7 +105,7 @@ If your module is of function type then you can invoke function exposed by
 ModuleWrapper.module property in order to execute your module and access its
 result.
  
->  You can access a function result **only via Promsie API** even if your module
+>  You can access a function result **only via Promise API** even if your module
 is not promise based
  
 ```js
@@ -129,20 +138,24 @@ try {
 
 ## Limitations
 
-to be written...
+Modulik requires your module (entity exported using `module.exports`) to be
+ - serializable, or
+ - a function which returns a serializable data
+
+The serialization requirement is dictated by the nature of Node's IPC communication channel
+which modulik uses. Node serializes data being send through IPC channel.
+
+> But wait.. Function is not serializable..
+
+It is not, but modulik treats it in a special way. Only result of execution has to be serializable
+due to same "IPC channel" reason.
 
 ## modulik vs nodemon
 
-You may think modulik is a clone of nodemon. Let me put you right..
-
-Both modulik and nodemon are able to restart module on changes. Primary usage
-of nodemon is the one via CLI, but you can use it also in runtime as importable
-module. Modulik on the other hand focuses only on runtime usage.
-
-The key advantage of modulik over nodemon is that it behaves like
-the `require` statement. **It exposes what's being exported by given module.**
-You can for instance have a module that exports a function. Import it using
-modulik to enhance it with the "nodemon-ity" (restarting on changes).
+Both modulik and nodemon can restart your module on changes.
+The key difference between modulik and nodemon is that modulik behaves like a `require` statement. **It exposes what's exported by given module and enhances it with the "nodemon-ity (restarting on changes)"**
+Given that you can access entity exposed by your module and if it is a function you can invoke it via dedicated API.
+Nodemon is missing the part of exposing module. It allows only to restart a module on changes, or programmatically.
 
 Check out the [simple usage example](#simple-usage-example) or the
 [example](example) project to see modulik in action!
