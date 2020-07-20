@@ -62,8 +62,9 @@ module.exports = (pathOrOptions, options) => {
     resolveModuleBodyPromise(moduleBody);
     emitter.emit('ready');
   };
-  const onError = error => {
+  const onFailed = error => {
     rejectModuleBodyPromise(error);
+    emitter.emit('failed', error);
   };
 
   recreateModuleBodyPromise();
@@ -71,7 +72,7 @@ module.exports = (pathOrOptions, options) => {
     cfg,
     onRestart,
     onReady,
-    onError,
+    onFailed,
   });
 
   return Object.setPrototypeOf(

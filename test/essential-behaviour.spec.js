@@ -290,7 +290,7 @@ describe('Essential behaviour', () => {
   });
 
   it('emits "restart" event when restart happens', async () => {
-    const numberModulik = modulik('./resources/number-module.js');
+    const numberModulik = modulik('./resources/number-module');
     scheduler.add(async () => {
       await numberModulik.kill();
     });
@@ -303,7 +303,7 @@ describe('Essential behaviour', () => {
   });
 
   it('emits "ready" event when module is ready', async () => {
-    const numberModulik = modulik('./resources/number-module.js');
+    const numberModulik = modulik('./resources/number-module');
     scheduler.add(async () => {
       await numberModulik.kill();
     });
@@ -313,5 +313,25 @@ describe('Essential behaviour', () => {
     });
     await numberModulik.module;
     assert.deepStrictEqual(emitted, true);
+  });
+
+  it('emits "failed" event with error object when module failed', async () => {
+    const numberModulik = modulik('./resources/trowing-module');
+    scheduler.add(async () => {
+      await numberModulik.kill();
+    });
+    let emittedError = null;
+    let thrownError = null;
+    numberModulik.on('failed', error => {
+      emittedError = error;
+    });
+    try {
+      await numberModulik.module;
+    } catch (e) {
+      thrownError = e;
+    }
+    assert.deepStrictEqual(emittedError instanceof Error, true);
+    assert.deepStrictEqual(emittedError === thrownError, true);
+    assert.deepStrictEqual(emittedError.message, 'Module exited unexpectedly');
   });
 });
