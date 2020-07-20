@@ -18,7 +18,7 @@ const createLogger = (moduleName, quiet) => {
   };
 };
 
-const launchFully = ({ cfg, onRestart, onReady, onError }) => {
+const launchFully = ({ cfg, onRestart, onReady, onFailed }) => {
   const moduleFileName = path.parse(cfg.path).base;
   const logger = createLogger(moduleFileName, cfg.quiet);
   const childController = createChildController();
@@ -116,18 +116,18 @@ const launchFully = ({ cfg, onRestart, onReady, onError }) => {
       moduleState = moduleStateIdle;
 
       if (code === 0) return;
-      // module has been programatically killed
+      // module has been programmatically killed
       if (code === null && previousModuleState === moduleStateIdle) {
         // module was not fully evaluated yet
         if (!currentModuleBody) {
-          onError(new Error('Module unavailable'));
+          onFailed(new Error('Module unavailable'));
         }
         return;
       }
 
       // module exited because of unknown reason
       logger.error('Exited unexpectedly');
-      onError(new Error('Module exited unexpectedly'));
+      onFailed(new Error('Module exited unexpectedly'));
     });
   };
 
@@ -181,12 +181,12 @@ const launchFully = ({ cfg, onRestart, onReady, onError }) => {
   };
 };
 
-const launchPhantomly = ({ cfg, onReady, onError }) => {
+const launchPhantomly = ({ cfg, onReady, onFailed }) => {
   try {
     const moduleBody = require(cfg.path);
     onReady(moduleBody);
   } catch (e) {
-    onError(e);
+    onFailed(e);
   }
 
   return {
@@ -195,12 +195,12 @@ const launchPhantomly = ({ cfg, onReady, onError }) => {
   };
 };
 
-const launch = ({ cfg, onRestart, onReady, onError }) =>
+const launch = ({ cfg, onRestart, onReady, onFailed }) =>
   (cfg.disabled ? launchPhantomly : launchFully)({
     cfg,
     onRestart,
     onReady,
-    onError,
+    onFailed,
   });
 
 module.exports = launch;
