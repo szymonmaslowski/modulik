@@ -46,14 +46,15 @@ const writeFileAndWait = (path, content) =>
       resolve();
       return;
     }
-    const fsWatcher = chokidar
-      .watch(path, { ignoreInitial: true })
-      .on('all', () => {
-        process.nextTick(async () => {
-          await fsWatcher.close();
-          resolve();
-        });
+    const fsWatcher = chokidar.watch(path, { ignoreInitial: true });
+    const finish = () => {
+      process.nextTick(async () => {
+        await fsWatcher.close();
+        await wait(10);
+        resolve();
       });
+    };
+    fsWatcher.on('add', finish).on('change', finish);
     await wait(10);
     writeFileSync(path, content);
   });
@@ -70,6 +71,7 @@ const deleteFileAndWait = path =>
       .on('unlink', () => {
         process.nextTick(async () => {
           await fsWatcher.close();
+          await wait(10);
           resolve();
         });
       });
