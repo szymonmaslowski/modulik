@@ -182,12 +182,19 @@ const launchFully = ({ cfg, onRestart, onReady, onFailed }) => {
 };
 
 const launchPhantomly = ({ cfg, onReady, onFailed }) => {
-  try {
-    const moduleBody = require(cfg.path);
-    onReady(moduleBody);
-  } catch (e) {
-    onFailed(e);
-  }
+  const moduleFileName = path.parse(cfg.path).base;
+  const logger = createLogger(moduleFileName, cfg.quiet);
+  process.nextTick(() => {
+    try {
+      const moduleBody = require(cfg.path);
+      onReady(moduleBody);
+      logger.info('Ready.');
+    } catch (e) {
+      process.stderr.write(`${e.stack}\n`);
+      logger.error('Exited unexpectedly');
+      onFailed(new Error('Module exited unexpectedly'));
+    }
+  });
 
   return {
     restart: () => {},

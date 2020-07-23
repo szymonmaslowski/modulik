@@ -111,35 +111,121 @@ describe('Essential behaviour', () => {
   });
 
   it('throws when accessing module if there is no module under provided path', async () => {
-    const invalidModulik = modulik('/invalid/module/path');
+    const invalidModulik1 = modulik('/invalid/module/path');
+    const invalidModulik2 = modulik('/invalid/module/path', { disabled: true });
     scheduler.add(async () => {
-      await invalidModulik.kill();
+      await invalidModulik1.kill();
+      await invalidModulik2.kill();
     });
-    try {
-      await invalidModulik.module;
-    } catch (e) {
-      assert.deepStrictEqual(e.message, 'Module exited unexpectedly');
-      return;
-    }
-    throw new Error('Module did not throw');
+    await (async () => {
+      try {
+        await invalidModulik1.module;
+      } catch (e) {
+        assert.deepStrictEqual(e.message, 'Module exited unexpectedly');
+        return;
+      }
+      throw new Error('Module did not throw');
+    })();
+    await (async () => {
+      try {
+        await invalidModulik2.module;
+      } catch (e) {
+        assert.deepStrictEqual(e.message, 'Module exited unexpectedly');
+        return;
+      }
+      throw new Error('Module did not throw');
+    })();
+  });
+
+  [
+    {
+      modulePath: './resources/number-module.js',
+      expectedMessage: 'Ready.',
+      logLevel: 'info',
+      reason: 'module is accessible',
+      reducer: (acc, modulikInstance) => acc.then(() => modulikInstance.module),
+    },
+    {
+      modulePath: './resources/throwing-module.js',
+      expectedMessage: 'Exited unexpectedly',
+      logLevel: 'error',
+      reason: 'module is accessible',
+      reducer: (acc, modulikInstance) =>
+        acc.then(() => modulikInstance.module.catch(() => {})),
+    },
+  ].forEach(({ modulePath, expectedMessage, logLevel, reason, reducer }) => {
+    it(`logs "${expectedMessage}" to the console when ${reason}`, async () => {
+      const spy = spyOn(console, logLevel);
+      scheduler.add(() => {
+        spy.free();
+      });
+
+      await [
+        modulik(modulePath),
+        modulik({
+          path: modulePath,
+        }),
+        modulik(modulePath, {
+          disabled: true,
+        }),
+        modulik({
+          path: modulePath,
+          disabled: true,
+        }),
+      ]
+        .map(modulikInstance => {
+          scheduler.add(async () => {
+            await modulikInstance.kill();
+          });
+          return modulikInstance;
+        })
+        .reduce(reducer, Promise.resolve())
+        .then(() => {
+          assert.deepStrictEqual(spy.calls.length, 4);
+          spy.calls.forEach(([msg]) => {
+            assert.deepStrictEqual(msg.includes(expectedMessage), true);
+          });
+        });
+    });
   });
 
   it('disables logging when quiet property of options is set to true', async () => {
     const spy = spyOn(console, 'info');
-    const moduleWatched1 = modulik('./resources/number-module.js', {
-      quiet: true,
-    });
-    const moduleWatched2 = modulik({
-      path: './resources/number-module.js',
-      quiet: true,
-    });
-    scheduler.add(async () => {
+    scheduler.add(() => {
       spy.free();
-      await moduleWatched1.kill();
-      await moduleWatched2.kill();
     });
 
-    assert.deepStrictEqual(spy.calls.length, 0);
+    await [
+      modulik('./resources/number-module.js', {
+        quiet: true,
+      }),
+      modulik({
+        path: './resources/number-module.js',
+        quiet: true,
+      }),
+      modulik('./resources/number-module.js', {
+        disabled: true,
+        quiet: true,
+      }),
+      modulik({
+        disabled: true,
+        path: './resources/number-module.js',
+        quiet: true,
+      }),
+    ]
+      .map(modulikInstance => {
+        scheduler.add(async () => {
+          await modulikInstance.kill();
+        });
+        return modulikInstance;
+      })
+      .reduce(
+        (acc, modulikInstance) => acc.then(() => modulikInstance.module),
+        Promise.resolve(),
+      )
+      .then(() => {
+        assert.deepStrictEqual(spy.calls.length, 0);
+      });
   });
 
   it('restarts module when "restart" method was invoked', async () => {
