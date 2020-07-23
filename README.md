@@ -97,6 +97,10 @@ Emitted when restarting of module has begun.
 
 Emitted when module has been parsed and is ready to access.
 
+**Event: 'failed'**
+
+Emitted on unexpected failure of the module.
+
 **ModuleWrapper.module**
 
  - Returns: \<Promise\<module>>
