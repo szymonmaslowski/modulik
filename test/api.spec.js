@@ -80,6 +80,7 @@ describe('API', () => {
 
     await writeFileAndWait(module2Path, `${module2Content}\n`);
     await moduleWatched.module;
+
     assert.deepStrictEqual(existsSync(fsArtifactPath), true);
     assert.deepStrictEqual(spy.calls.length, 3);
   });

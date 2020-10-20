@@ -25,14 +25,18 @@
   },
   "scripts": {
     "test": "mocha test/*.spec.js",
-    "start": "nodemon -q -w src -x \"yarn --cwd example start\""
+    "start": "nodemon -q -w src -x \"yarn --cwd example start\"",
+    "start-viz": "cd viz && webpack --mode=production --watch"
   },
   "dependencies": {
     "chokidar": "^3.0.1",
     "get-caller-file": "^2.0.5",
-    "uuid": "^3.3.2"
+    "modulik": "^0.3.1",
+    "uuid": "^8.3.2",
+    "xstate": "^4.26.1"
   },
   "devDependencies": {
+    "@xstate/inspect": "^0.4.1",
     "babel-eslint": "^10.0.2",
     "eslint": "5.3.0",
     "eslint-config-airbnb": "17.1.1",
@@ -47,6 +51,9 @@
     "mocha": "^6.2.2",
     "nodemon": "^1.19.1",
     "prettier": "^1.18.2",
-    "rimraf": "^2.6.3"
+    "rimraf": "^2.6.3",
+    "webpack": "^5.65.0",
+    "webpack-cli": "^4.9.1",
+    "ws": "^8.3.0"
   }
 }

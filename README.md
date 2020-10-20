@@ -120,6 +120,8 @@ const result = await example('some', 'arguments');
 **ModuleWrapper.restart()**
 
  - Returns: \<Promise>
+
+In case module fails to start the promise gets rejected.
  
 ```js
 await exampleModulik.restart();
