@@ -2,7 +2,7 @@ const { writeFileSync, existsSync, readFileSync } = require('fs');
 const chokidar = require('chokidar');
 const rimraf = require('rimraf');
 
-const wait = ms =>
+const wait = (ms = 0) =>
   new Promise(resolve => {
     setTimeout(resolve, ms);
   });
@@ -44,14 +44,17 @@ const attachListener = (paths, events, onChange) =>
   new Promise(resolve => {
     const fsWatcher = chokidar.watch(paths, { ignoreInitial: true });
     events.forEach(event => {
-      fsWatcher.on(event, () => {
-        setImmediate(async () => {
-          await fsWatcher.close();
-          onChange();
-        });
+      fsWatcher.on(event, async () => {
+        await wait();
+        await fsWatcher.close();
+        await wait(10);
+        onChange();
       });
     });
-    fsWatcher.on('ready', resolve);
+    fsWatcher.on('ready', async () => {
+      await wait(10);
+      resolve();
+    });
   });
 
 const writeFileAndWait = (path, content) =>

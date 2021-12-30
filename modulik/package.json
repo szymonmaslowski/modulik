@@ -1,0 +1,31 @@
+{
+  "name": "modulik",
+  "version": "0.3.1",
+  "main": "src/modulik.js",
+  "repository": "fredZgred/modulik/modulik",
+  "license": "MIT",
+  "author": "Szymon Maslowski <i.am.szymon.maslowski@gmail.com>",
+  "keywords": [
+    "monitor",
+    "restart",
+    "watcher",
+    "module",
+    "submodule",
+    "node",
+    "server",
+    "file",
+    "system",
+    "process",
+    "child",
+    "nodemon"
+  ],
+  "engines": {
+    "node": ">=8.16.0"
+  },
+  "dependencies": {
+    "chokidar": "^3.0.1",
+    "get-caller-file": "^2.0.5",
+    "uuid": "^8.3.2",
+    "xstate": "^4.26.1"
+  }
+}

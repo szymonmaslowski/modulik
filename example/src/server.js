@@ -2,7 +2,7 @@ const { resolve } = require('path');
 const express = require('express');
 const webpack = require('webpack');
 const webpackDevMiddleware = require('webpack-dev-middleware');
-const modulik = require('../../');
+const modulik = require('../../modulik');
 const webpackConfig = require('../webpack.config');
 
 const ssrModulik = modulik('./ssr', {

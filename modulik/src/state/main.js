@@ -1,29 +1,31 @@
 const { createMachine, assign, send, spawn, actions } = require('xstate');
-const isState = require('./isState');
 
 const { pure } = actions;
+
+const isState = (state, ...names) =>
+  names.some(name => state.toStrings().includes(name));
 
 const createMainMachine = ({
   areThereExecutionsBuffered,
   bufferExecution,
   childProcessMachine,
   fsWatcherMachine,
+  logBufferedExecutionsTerminated,
+  logCannotRestartKilledModule,
+  logFailed,
+  logReady,
+  logRestarting,
+  notifyKilled,
+  notifyRestarted,
+  notifyRestartFailed,
   recreateModulePromise,
-  resolveModule,
   rejectExecutionWithKilledModuleError,
   rejectExecutionWithInvalidModuleTypeError,
   rejectModuleWithAvailabilityError,
   rejectModuleWithFailureError,
   releaseBufferedExecutions,
+  resolveModule,
   terminateBufferedExecutions,
-  notifyKilled,
-  notifyRestarted,
-  notifyRestartFailed,
-  logReady,
-  logRestarting,
-  logFailed,
-  logCannotRestartKilledModule,
-  logBufferedExecutionsTerminated,
 }) =>
   createMachine({
     id: 'main',

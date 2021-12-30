@@ -1,26 +1,15 @@
-const { WebSocketServer } = require('ws');
+const WebSocket = require('ws');
 
 const createStateWSConnector = callbacks => {
-  const server = new WebSocketServer({
-    port: 4000,
+  const server = new WebSocket.Server({
+    port: 4444,
   });
-
-  let states = {
-    isStarting: false,
-    isAccessible: false,
-    isKilled: false,
-  };
 
   let client = null;
   server.on('connection', connection => {
     client = connection;
     connection.on('message', data => {
-      const { type, name, args, statesData } = JSON.parse(data);
-
-      if (type === 'states') {
-        states = statesData;
-        return;
-      }
+      const { name, args } = JSON.parse(data);
 
       const callback = callbacks[name];
       if (!callback) {
@@ -31,35 +20,26 @@ const createStateWSConnector = callbacks => {
     });
   });
 
-  const baseApi = ['isStarting', 'isAccessible', 'isKilled'].reduce(
-    (acc, name) => {
-      acc[name] = () => states[name];
-      return acc;
-    },
-    {},
-  );
-
   return [
-    'fSWatcherReady',
-    'moduleChanged',
-    'restartRequested',
-    'ready',
     'execute',
-    'processExited',
-    'killRequested',
+    'fSWatcherReady',
     'fSWatcherStopped',
+    'killRequested',
+    'moduleChanged',
+    'processExited',
+    'ready',
+    'restartRequested',
   ].reduce((acc, name) => {
     acc[name] = (...args) => {
       client.send(
         JSON.stringify({
-          type: 'command',
           name,
           args,
         }),
       );
     };
     return acc;
-  }, baseApi);
+  }, {});
 };
 
 module.exports = createStateWSConnector;

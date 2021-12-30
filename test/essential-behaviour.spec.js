@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const { existsSync, readFileSync } = require('fs');
-const modulik = require('..');
+const modulik = require('../modulik');
 const {
   spyOn,
   scheduler,

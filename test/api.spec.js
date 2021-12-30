@@ -2,7 +2,7 @@ const assert = require('assert');
 const EventEmitter = require('events');
 const { resolve } = require('path');
 const { existsSync, readFileSync } = require('fs');
-const modulik = require('..');
+const modulik = require('../modulik');
 const {
   spyOn,
   writeFileAndWait,

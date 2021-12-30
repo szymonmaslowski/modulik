@@ -1,41 +1,14 @@
 {
   "name": "modulik",
-  "version": "0.3.1",
-  "main": "src/modulik.js",
-  "repository": "fredZgred/modulik",
-  "license": "MIT",
-  "author": "Szymon Maslowski <i.am.szymon.maslowski@gmail.com>",
-  "keywords": [
-    "monitor",
-    "restart",
-    "watcher",
-    "module",
-    "submodule",
-    "node",
-    "server",
-    "file",
-    "system",
-    "process"
+  "private": "true",
+  "workspaces": [
+    "modulik"
   ],
-  "files": [
-    "src"
-  ],
-  "engines": {
-    "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
-  },
   "scripts": {
     "test": "mocha test/*.spec.js",
-    "start": "nodemon -q -w src -x \"yarn --cwd example start\"",
-    "start-viz": "cd viz && webpack --mode=production --watch"
-  },
-  "dependencies": {
-    "chokidar": "^3.0.1",
-    "get-caller-file": "^2.0.5",
-    "uuid": "^8.3.2",
-    "xstate": "^4.26.1"
+    "example": "nodemon -q -w src -x \"yarn --cwd example start\""
   },
   "devDependencies": {
-    "@xstate/inspect": "^0.5.2",
     "babel-eslint": "^10.0.2",
     "eslint": "5.3.0",
     "eslint-config-airbnb": "17.1.1",
@@ -48,11 +21,8 @@
     "husky": "^3.0.0",
     "lint-staged": "^9.0.2",
     "mocha": "^6.2.2",
-    "nodemon": "^2.0.15",
+    "nodemon": "2.0.12",
     "prettier": "^1.18.2",
-    "rimraf": "^2.6.3",
-    "webpack": "^5.65.0",
-    "webpack-cli": "^4.9.1",
-    "ws": "^7.3.1"
+    "rimraf": "^2.6.3"
   }
 }
