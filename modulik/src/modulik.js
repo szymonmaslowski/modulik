@@ -24,11 +24,15 @@ module.exports = (pathOrOptions, options) => {
     quiet: Boolean(providedConfig.quiet),
     disabled: Boolean(providedConfig.disabled),
   };
-  cfg.extensions = systemSupportedExtensions
+
+  const watchExtensions = systemSupportedExtensions
     .concat(
-      Array.isArray(providedConfig.extensions) ? providedConfig.extensions : [],
+      Array.isArray(providedConfig.watchExtensions)
+        ? providedConfig.watchExtensions
+        : [],
     )
     .filter(isItFirstSuchItem);
+
   cfg.watch = (Array.isArray(providedConfig.watch) ? providedConfig.watch : [])
     .concat(providedConfig.path)
     .filter(isItFirstSuchItem)
@@ -36,9 +40,10 @@ module.exports = (pathOrOptions, options) => {
       const absolutePath = path.resolve(callerPath, filePath);
       return acc.concat([
         absolutePath,
-        `${absolutePath}.{${cfg.extensions.join(',')}}`,
+        `${absolutePath}.{${watchExtensions.join(',')}}`,
       ]);
     }, []);
+
   cfg.transpiler = ['ts', 'babel'].includes(providedConfig.transpiler)
     ? { type: providedConfig.transpiler, options: {} }
     : false;

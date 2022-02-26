@@ -340,11 +340,11 @@ describe('Essential behaviour', () => {
 
   [
     {
-      watchedPath: './resources/nested/module.js',
+      watchedPath: './resources/nested/module',
       name: 'relative path',
     },
     {
-      watchedPath: path.resolve(__dirname, 'resources/nested/module.js'),
+      watchedPath: path.resolve(__dirname, 'resources/nested/module'),
       name: 'absolute path',
     },
     {
@@ -361,11 +361,12 @@ describe('Essential behaviour', () => {
         __dirname,
         'resources/fs-artifact.txt',
       );
-      const modulePath = path.resolve(__dirname, 'resources/nested/module.js');
+      const modulePath = path.resolve(__dirname, 'resources/nested/module.jsx');
       const moduleContent = readFileSync(modulePath, 'utf-8');
 
-      const moduleWatched = modulik('./resources/fs-module.js', {
+      const moduleWatched = modulik('./resources/fs-module', {
         watch: [watchedPath],
+        watchExtensions: ['jsx'],
       });
       scheduler.add(async () => {
         await deleteFileAndWait(fsArtifactPath);

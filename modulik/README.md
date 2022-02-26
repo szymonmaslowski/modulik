@@ -67,7 +67,7 @@ For more sophisticated usage example check out the [example](example) project.
     argument. If both provided then `path` option overrides the `modulePath`
     - `watch` *\<Array>* Additional list of files or directories to be watched
     for changes
-    - `extensions` *\<Array>* List of non-standard extensions that will be
+    - `watchExtensions` *\<Array>* List of non-standard extensions that will be
     considered during watching for changes to files specified in `watch` option.
     All standard node extensions are considered anyway, so you don't need to
     specify e.g. *js* extension
@@ -79,7 +79,7 @@ For more sophisticated usage example check out the [example](example) project.
 ```js
 modulik('./path/to/module', {
   watch: ['./path/to/directory', '/absolute/path', './path/to/specific-module.js'],
-  extensions: ['jsx'],
+  watchExtensions: ['jsx'],
   disabled: PRODUCTION === true,
   quiet: true,
 });
