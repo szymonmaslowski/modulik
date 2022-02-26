@@ -1,6 +1,7 @@
 {
   "rules": {
     "global-require": "off",
-    "import/no-extraneous-dependencies": "off"
+    "import/no-extraneous-dependencies": "off",
+    "react/prop-types": "off"
   }
 }

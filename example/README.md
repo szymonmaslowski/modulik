@@ -5,10 +5,10 @@ Server Side Rendering and uses webpack-dev-middleware. It starts
 via nodemon, so any change to the code restarts whole server.
 
 **Problems:**
-1. every restart of server causes webpack-dev-middleware
-to recompile from scratch whole client-app (which could be time consuming)
+1. every restart of the server causes webpack-dev-middleware
+to recompile from scratch whole client app (which could be time consuming)
 instead of just to apply a change.
-1. even if you change only client-app related file you still need to
+1. even if you change only the client app related file you still need to
 restart the server in order to consume new changes for SSR which leads
 to problem 1.
 
