@@ -1,13 +1,13 @@
 const assert = require('assert');
 const path = require('path');
 const { existsSync, readFileSync } = require('fs');
-const modulik = require('../modulik');
+const modulik = require('../../modulik');
 const {
   spyOn,
   scheduler,
   writeFileAndWait,
   deleteFileAndWait,
-} = require('./utils');
+} = require('../utils');
 
 describe('Essential behaviour', () => {
   afterEach(async () => {
@@ -137,6 +137,39 @@ describe('Essential behaviour', () => {
     })();
   });
 
+  it('throws when accessing module if the "transpiler" option has been specifued but there is no corresponding transpiler module installed', async () => {
+    const babelModule = modulik('./resources/object-module', {
+      transpiler: 'babel',
+    });
+    const tsModule = modulik('./resources/object-module', {
+      transpiler: 'ts',
+    });
+
+    scheduler.add(async () => {
+      await babelModule.kill();
+      await tsModule.kill();
+    });
+
+    await (async () => {
+      try {
+        await babelModule.module;
+      } catch (e) {
+        assert.deepStrictEqual(e.message, 'Transpiler module not found');
+        return;
+      }
+      throw new Error('Module did not throw');
+    })();
+    await (async () => {
+      try {
+        await tsModule.module;
+      } catch (e) {
+        assert.deepStrictEqual(e.message, 'Transpiler module not found');
+        return;
+      }
+      throw new Error('Module did not throw');
+    })();
+  });
+
   [
     {
       modulePath: './resources/number-module.js',
@@ -149,7 +182,7 @@ describe('Essential behaviour', () => {
       modulePath: './resources/throwing-module.js',
       expectedMessage: 'Exited unexpectedly',
       logLevel: 'error',
-      reason: 'module is accessible',
+      reason: 'module failed to evaluate',
       reducer: (acc, modulikInstance) =>
         acc.then(() => modulikInstance.module.catch(() => {})),
     },
@@ -186,6 +219,47 @@ describe('Essential behaviour', () => {
             assert.deepStrictEqual(msg.includes(expectedMessage), true);
           });
         });
+    });
+  });
+
+  [
+    {
+      transpiler: 'babel',
+      transpilerModule: '@babel/register',
+    },
+    {
+      transpiler: 'ts',
+      transpilerModule: 'ts-node',
+    },
+  ].forEach(({ transpiler, transpilerModule }) => {
+    it(`logs about missing transpiler module message when "${transpilerModule}" is not installed but the the transpiler options is set to "${transpiler}"`, async () => {
+      const spy = spyOn(console, 'error');
+      scheduler.add(() => {
+        spy.free();
+      });
+
+      const modulikInstance = modulik('./resources/object-module', {
+        transpiler,
+      });
+
+      scheduler.add(async () => {
+        await modulikInstance.kill();
+      });
+
+      try {
+        await modulikInstance.module;
+      } catch (e) {
+        assert.deepStrictEqual(spy.calls.length, 1);
+        assert.deepStrictEqual(
+          spy.calls[0][0].includes(
+            `"${transpiler}" transpiler is enabled but the "${transpilerModule}" module could not be found. Did you forget to install it?`,
+          ),
+          true,
+        );
+        return;
+      }
+
+      throw new Error('Module did not throw');
     });
   });
 
@@ -266,22 +340,22 @@ describe('Essential behaviour', () => {
 
   [
     {
-      watchItem: './resources/nested/module.js',
+      watchedPath: './resources/nested/module.js',
       name: 'relative path',
     },
     {
-      watchItem: path.resolve(__dirname, 'resources/nested/module.js'),
+      watchedPath: path.resolve(__dirname, 'resources/nested/module.js'),
       name: 'absolute path',
     },
     {
-      watchItem: './resources/nested',
+      watchedPath: './resources/nested',
       name: 'directory path',
     },
     // {
     //   watchItem: './resources/nested/*.js',
     //   name: 'glob',
     // },
-  ].forEach(({ watchItem, name }) => {
+  ].forEach(({ watchedPath, name }) => {
     it(`restarts module on changes to watched files when watching on ${name}`, async () => {
       const fsArtifactPath = path.resolve(
         __dirname,
@@ -291,7 +365,7 @@ describe('Essential behaviour', () => {
       const moduleContent = readFileSync(modulePath, 'utf-8');
 
       const moduleWatched = modulik('./resources/fs-module.js', {
-        watch: [watchItem],
+        watch: [watchedPath],
       });
       scheduler.add(async () => {
         await deleteFileAndWait(fsArtifactPath);
@@ -404,22 +478,63 @@ describe('Essential behaviour', () => {
   });
 
   it('emits "failed" event with error object when module failed', async () => {
-    const numberModulik = modulik('./resources/trowing-module');
+    const emittedErrors = [];
+    const thrownErrors = [];
+
+    const iterateOverInstances = async (instances, reducer) =>
+      instances.reduce(async (acc, instance, index) => {
+        await acc;
+        await reducer(instance, index);
+      }, Promise.resolve());
+
+    let moduleToBeKilled = null;
+
+    const instances = [
+      modulik('./resources/trowing-module'),
+      modulik('./resources/object-module', {
+        transpiler: 'ts',
+      }),
+      (() => {
+        moduleToBeKilled = modulik('./resources/object-module');
+        return moduleToBeKilled;
+      })(),
+    ];
+
+    instances.forEach((instance, index) => {
+      instance.on('failed', error => {
+        emittedErrors[index] = error;
+      });
+    });
+
+    moduleToBeKilled.kill();
+
     scheduler.add(async () => {
-      await numberModulik.kill();
+      await iterateOverInstances(instances, instance => instance.kill());
     });
-    let emittedError = null;
-    let thrownError = null;
-    numberModulik.on('failed', error => {
-      emittedError = error;
+
+    await iterateOverInstances(instances, async (instance, index) => {
+      try {
+        await instance.module;
+      } catch (e) {
+        thrownErrors[index] = e;
+      }
     });
-    try {
-      await numberModulik.module;
-    } catch (e) {
-      thrownError = e;
-    }
-    assert.deepStrictEqual(emittedError instanceof Error, true);
-    assert.deepStrictEqual(emittedError === thrownError, true);
-    assert.deepStrictEqual(emittedError.message, 'Module exited unexpectedly');
+
+    const expectedMessages = [
+      'Module exited unexpectedly',
+      'Transpiler module not found',
+      'Module unavailable',
+    ];
+    instances.forEach((instance, index) => {
+      assert.deepStrictEqual(emittedErrors[index] instanceof Error, true);
+      assert.deepStrictEqual(
+        emittedErrors[index] === thrownErrors[index],
+        true,
+      );
+      assert.deepStrictEqual(
+        emittedErrors[index].message,
+        expectedMessages[index],
+      );
+    });
   });
 });

@@ -4,8 +4,32 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-const modulePath = process.argv[2];
-const childModule = require(modulePath);
+const [modulePath, rawTranspiler] = process.argv.slice(2);
+const transpiler = JSON.parse(rawTranspiler);
+
+// eslint-disable-next-line consistent-return
+const importTranspilerOrExit = packageName => {
+  try {
+    return require(packageName);
+  } catch (e) {
+    process.exit(2);
+  }
+};
+
+if (transpiler) {
+  const { type, options = {} } = transpiler;
+  if (type === 'babel') {
+    importTranspilerOrExit('@babel/register')(options);
+  }
+  if (type === 'ts') {
+    importTranspilerOrExit('ts-node').register(options);
+  }
+}
+
+let childModule = require(modulePath);
+if (transpiler && childModule.default) {
+  childModule = childModule.default;
+}
 
 const moduleType = typeof childModule;
 let serializable = false;

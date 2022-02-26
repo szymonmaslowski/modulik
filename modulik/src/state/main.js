@@ -15,6 +15,7 @@ const createMainMachine = ({
   logFailed,
   logReady,
   logRestarting,
+  logTranspilerError,
   notifyKilled,
   notifyRestarted,
   notifyRestartFailed,
@@ -23,6 +24,7 @@ const createMainMachine = ({
   rejectExecutionWithInvalidModuleTypeError,
   rejectModuleWithAvailabilityError,
   rejectModuleWithFailureError,
+  rejectModuleWithTranspilerError,
   releaseBufferedExecutions,
   resolveModule,
   terminateBufferedExecutions,
@@ -198,7 +200,18 @@ const createMainMachine = ({
         },
       },
       failed: {
-        entry: [pure(logFailed), pure(rejectModuleWithFailureError)],
+        entry: [
+          pure(ctx =>
+            ctx.childProcess.state.context.transpilerError
+              ? logTranspilerError()
+              : logFailed(),
+          ),
+          pure(ctx =>
+            ctx.childProcess.state.context.transpilerError
+              ? rejectModuleWithTranspilerError()
+              : rejectModuleWithFailureError(),
+          ),
+        ],
         on: {
           EXECUTE: {
             actions: [

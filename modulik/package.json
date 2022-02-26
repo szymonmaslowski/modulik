@@ -24,8 +24,19 @@
   },
   "dependencies": {
     "chokidar": "^3.0.1",
-    "get-caller-file": "^2.0.5",
     "uuid": "^8.3.2",
     "xstate": "^4.26.1"
+  },
+  "peerDependencies": {
+    "@babel/register": "^7.0.0",
+    "ts-node": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@babel/register": {
+      "optional": true
+    },
+    "ts-node": {
+      "optional": true
+    }
   }
 }

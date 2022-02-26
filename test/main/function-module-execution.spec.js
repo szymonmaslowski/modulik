@@ -1,8 +1,8 @@
 const assert = require('assert');
 const path = require('path');
 const { readFileSync, appendFileSync } = require('fs');
-const modulik = require('../modulik');
-const { wait, scheduler, writeFileAndWait } = require('./utils');
+const modulik = require('../../modulik');
+const { wait, scheduler, writeFileAndWait } = require('../utils');
 
 describe('Function module execution', () => {
   afterEach(async () => {

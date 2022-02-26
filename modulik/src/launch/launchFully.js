@@ -8,6 +8,11 @@ const createLogger = require('./logger');
 
 const childPath = path.resolve(__dirname, '../child.js');
 
+const mapOfTranspilerToModuleName = {
+  babel: '@babel/register',
+  ts: 'ts-node',
+};
+
 const launchFully = ({
   cfg,
   recreateModulePromise,
@@ -66,6 +71,12 @@ const launchFully = ({
     logReady: () => logger.info('Ready.'),
     logRestarting: () => logger.info('Restarting..'),
     logFailed: () => logger.error('Exited unexpectedly'),
+    logTranspilerError: () =>
+      logger.error(
+        `"${cfg.transpiler.type}" transpiler is enabled but the "${
+          mapOfTranspilerToModuleName[cfg.transpiler.type]
+        }" module could not be found. Did you forget to install it?`,
+      ),
     logCannotRestartKilledModule: () =>
       logger.error('Module killed - cannot restart'),
     recreateModulePromise,
@@ -101,6 +112,9 @@ const launchFully = ({
     rejectModuleWithFailureError: () => {
       rejectModule(new Error('Module exited unexpectedly'));
     },
+    rejectModuleWithTranspilerError: () => {
+      rejectModule(new Error('Transpiler module not found'));
+    },
     rejectModuleWithAvailabilityError: () => {
       rejectModule(new Error('Module unavailable'));
     },
@@ -127,7 +141,10 @@ const launchFully = ({
         });
     },
     startChildProcess: () => {
-      childProcess = fork(childPath, [cfg.path]);
+      childProcess = fork(childPath, [
+        cfg.path,
+        JSON.stringify(cfg.transpiler),
+      ]);
       childProcess.on(
         'message',
         childController.makeMessageHandler({
@@ -140,7 +157,10 @@ const launchFully = ({
         }),
       );
       childProcess.on('exit', code => {
-        state.processExited({ clean: [0, null].includes(code) });
+        state.processExited({
+          clean: [0, null].includes(code),
+          transpilerError: code === 2,
+        });
       });
     },
     terminateBufferedExecutions: () => {

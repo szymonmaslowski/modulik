@@ -2,13 +2,13 @@ const assert = require('assert');
 const EventEmitter = require('events');
 const { resolve } = require('path');
 const { existsSync, readFileSync } = require('fs');
-const modulik = require('../modulik');
+const modulik = require('../../modulik');
 const {
   spyOn,
   writeFileAndWait,
   scheduler,
   deleteFileAndWait,
-} = require('./utils');
+} = require('../utils');
 
 describe('API', () => {
   afterEach(async () => {

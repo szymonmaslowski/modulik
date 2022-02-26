@@ -1,0 +1,15 @@
+{
+  "name": "transpilation-tests",
+  "private": "true",
+  "scripts": {
+    "start": "mocha ./*.spec.js"
+  },
+  "dependencies": {
+    "@babel/core": "^7.16.7",
+    "@babel/preset-env": "^7.16.7",
+    "@babel/register": "^7.16.7",
+    "modulik": "../../modulik",
+    "ts-node": "^3.0.0",
+    "typescript": "^4.5.4"
+  }
+}

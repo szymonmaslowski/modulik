@@ -11,6 +11,7 @@ const createState = ({
   logFailed,
   logReady,
   logRestarting,
+  logTranspilerError,
   notifyKilled,
   notifyRestarted,
   notifyRestartFailed,
@@ -19,6 +20,7 @@ const createState = ({
   rejectExecutionWithInvalidModuleTypeError,
   rejectModuleWithAvailabilityError,
   rejectModuleWithFailureError,
+  rejectModuleWithTranspilerError,
   releaseBufferedExecutions,
   resolveModule,
   startFSWatcher,
@@ -47,6 +49,7 @@ const createState = ({
     logFailed,
     logReady,
     logRestarting,
+    logTranspilerError,
     notifyKilled,
     notifyRestarted,
     notifyRestartFailed,
@@ -55,6 +58,7 @@ const createState = ({
     rejectExecutionWithInvalidModuleTypeError,
     rejectModuleWithAvailabilityError,
     rejectModuleWithFailureError,
+    rejectModuleWithTranspilerError,
     releaseBufferedExecutions,
     resolveModule: ({ childProcess }) => {
       resolveModule({ data: childProcess.state.context.readinessData });
@@ -78,9 +82,10 @@ const createState = ({
       service.state.context.fsWatcher.send('FS_WATCHER_STOPPED'),
     killRequested: () => service.send('KILL_REQUESTED'),
     moduleChanged: () => service.send('MODULE_CHANGED'),
-    processExited: ({ clean }) =>
+    processExited: ({ clean, transpilerError }) =>
       service.state.context.childProcess.send('CHILD_PROCESS_EXITED', {
         clean,
+        transpilerError,
       }),
     ready: data =>
       service.state.context.childProcess.send('CHILD_PROCESS_READY', data),

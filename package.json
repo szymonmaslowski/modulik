@@ -5,10 +5,13 @@
     "modulik"
   ],
   "scripts": {
-    "test": "mocha test/*.spec.js",
-    "example": "nodemon -q -w src -x \"yarn --cwd example start\""
+    "test": "mocha test/main/*.spec.js && yarn --cwd test/transpilation start",
+    "example": "nodemon -q -w src -x \"yarn --cwd example start\"",
+    "postinstall": "yarn --cwd test/transpilation install"
   },
   "devDependencies": {
+    "@babel/core": "^7.16.7",
+    "@babel/preset-env": "^7.16.7",
     "babel-eslint": "^10.0.2",
     "eslint": "5.3.0",
     "eslint-config-airbnb": "17.1.1",

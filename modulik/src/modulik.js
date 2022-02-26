@@ -1,6 +1,6 @@
 const EventEmitter = require('events');
 const path = require('path');
-const getCallerFile = require('get-caller-file');
+const getCallerDirectoryPath = require('./getCallerDirectoryPath');
 const launch = require('./launch');
 
 const isItFirstSuchItem = (item, index, self) => self.indexOf(item) === index;
@@ -18,7 +18,7 @@ module.exports = (pathOrOptions, options) => {
     throw new Error('Invalid module path');
   }
 
-  const callerPath = path.dirname(getCallerFile());
+  const callerPath = getCallerDirectoryPath();
   const cfg = {
     path: path.resolve(callerPath, providedConfig.path),
     quiet: Boolean(providedConfig.quiet),
@@ -39,6 +39,12 @@ module.exports = (pathOrOptions, options) => {
         `${absolutePath}.{${cfg.extensions.join(',')}}`,
       ]);
     }, []);
+  cfg.transpiler = ['ts', 'babel'].includes(providedConfig.transpiler)
+    ? { type: providedConfig.transpiler, options: {} }
+    : false;
+  if (cfg.transpiler && typeof providedConfig.transpilerOptions === 'object') {
+    cfg.transpiler.options = providedConfig.transpilerOptions;
+  }
 
   let moduleBodyPromise = null;
   let resolveModuleBodyPromise = () => {};

@@ -6,7 +6,10 @@ const launchPhantomly = ({ cfg, resolveModule, rejectModule }) => {
   const logger = createLogger(moduleFileName, cfg.quiet);
   process.nextTick(() => {
     try {
-      const moduleBody = require(cfg.path);
+      let moduleBody = require(cfg.path);
+      if (cfg.transpiler && moduleBody.default) {
+        moduleBody = moduleBody.default;
+      }
       resolveModule(moduleBody);
       logger.info('Ready.');
     } catch (e) {
