@@ -74,6 +74,8 @@ For more sophisticated usage example check out the [example](example) project.
     - `disabled` *\<boolean>* Disables functionality of watching for changes and
     restarting, and just exposes the module. **Default:** `false`
     - `quiet` *\<boolean>* Disables logs. **Default:** `false`
+    - `transpiler` *\<'babel'> | \<'typescript'>* Enables transpilation on the module. Note that this option requires additional dependencies. Check the [transpilation section](#Transpilation) for more information
+    - `transpilerOptions` *\<Object>* Options used to setup the trnspilation. Check the [transpilation section](#Transpilation) for more information
  - Returns: <[ModuleWrapper](#ModuleWrapper)>
 
 ```js
@@ -141,6 +143,28 @@ try {
   console.info('I can access my module, but can not execute it, because it is already killed');
 }
 ```
+
+## Transpilation
+
+> ⚠️ Note that if you already transpile your project using babel or typescript
+> and run modulik in one of the files that are being transpiled then you don't need
+> to setup the transpilation for modulik explicitly as it will just work seamlessly
+> in your application environment
+
+Modulik gives a possibility to enable transpilation for wrapped module
+via setting the `transpiler` option to either `babel` or `typescript`.
+It uses available tools designed for that:
+ - [`@babel/register`](https://www.npmjs.com/package/@babel/register)
+ - [`ts-node`](https://www.npmjs.com/package/ts-node)
+
+The transpilation is achieved using the programmatic apis of those modules.
+Both of them are an optional peer dependencies of modulik, so in order to use
+the transpilation feature you need to install adequate module and all of its
+peer dependencies yourself.
+
+It is possible to provide transpilation options via `transpilerOptions` option.
+The transpiler options you can provide depend on the transpilation tool you chose.
+Please refer to the documentation of particular module for the complete list of options.
 
 ## Limitations
 
