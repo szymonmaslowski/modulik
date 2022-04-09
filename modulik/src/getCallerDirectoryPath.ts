@@ -1,7 +1,11 @@
-const path = require('path');
+import path from 'path';
 
-module.exports = () => {
+export default () => {
   const rawStack = new Error().stack;
+  if (!rawStack) {
+    throw new Error('Could not detect requested module directory');
+  }
+
   const lineWithCallerPath = rawStack.split('\n')[3];
   const matchedCallSource = lineWithCallerPath.match(
     /^\s*at\s[^(]*\(([^)]*)\)$/,

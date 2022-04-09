@@ -137,12 +137,12 @@ describe('Essential behaviour', () => {
     })();
   });
 
-  it('throws when accessing module if the "transpiler" option has been specifued but there is no corresponding transpiler module installed', async () => {
+  it('throws when accessing module if the "transpiler" option has been specified but there is no corresponding transpiler module installed', async () => {
     const babelModule = modulik('./resources/object-module', {
       transpiler: 'babel',
     });
     const tsModule = modulik('./resources/object-module', {
-      transpiler: 'ts',
+      transpiler: 'typescript',
     });
 
     scheduler.add(async () => {
@@ -228,7 +228,7 @@ describe('Essential behaviour', () => {
       transpilerModule: '@babel/register',
     },
     {
-      transpiler: 'ts',
+      transpiler: 'typescript',
       transpilerModule: 'ts-node',
     },
   ].forEach(({ transpiler, transpilerModule }) => {
@@ -493,7 +493,7 @@ describe('Essential behaviour', () => {
     const instances = [
       modulik('./resources/trowing-module'),
       modulik('./resources/object-module', {
-        transpiler: 'ts',
+        transpiler: 'typescript',
       }),
       (() => {
         moduleToBeKilled = modulik('./resources/object-module');

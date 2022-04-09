@@ -21,18 +21,20 @@ if (transpiler) {
   if (type === 'babel') {
     importTranspilerOrExit('@babel/register')(options);
   }
-  if (type === 'ts') {
+  if (type === 'typescript') {
     importTranspilerOrExit('ts-node').register(options);
   }
 }
 
 let childModule = require(modulePath);
-if (transpiler && childModule.default) {
+const moduleHavingDefaultExport =
+  childModule && typeof childModule === 'object' && 'default' in childModule;
+if (moduleHavingDefaultExport) {
   childModule = childModule.default;
 }
 
 const moduleType = typeof childModule;
-let serializable = false;
+let serializable;
 try {
   const serialized = JSON.stringify(childModule);
   serializable = Boolean(serialized);
@@ -44,16 +46,16 @@ if (moduleType === 'function') {
   process.on(
     'message',
     parentController.makeMessageHandler({
-      async onInvoke({ correlationId, args }) {
+      async execute({ correlationId, args }) {
         let result = null;
         try {
           const data = await childModule(...args);
-          result = { data };
+          result = { data, error: false };
         } catch (e) {
           result = { data: e.message, error: true };
         }
         process.send(
-          parentController.invocationResult({ correlationId, result }),
+          parentController.executionResult({ correlationId, result }),
         );
       },
     }),
@@ -62,7 +64,8 @@ if (moduleType === 'function') {
 
 process.send(
   parentController.ready({
-    type: moduleType,
     body: serializable ? childModule : undefined,
+    serializable,
+    type: moduleType,
   }),
 );

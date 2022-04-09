@@ -16,6 +16,9 @@ jobs:
             - v1-dependencies-
       - run: yarn install --frozen-lockfile
       - run:
+          name: Run lint
+          command: yarn lint
+      - run:
           name: Run tests
           command: yarn test
       - save_cache:
