@@ -7,12 +7,14 @@
   "scripts": {
     "build": "rimraf modulik/lib && rollup -c",
     "build:watch": "rimraf modulik/lib && rollup -c --watch",
-    "test": "mocha test/main/*.spec.js && yarn --cwd test/transpilation start",
+    "test": "run-s test:*",
+    "test:main": "[ \"$CI\" = true ] && yarn --cwd test/main start || mocha test/main/*.spec.js",
+    "test:transpilation": "yarn --cwd test/transpilation start",
     "lint": "run-s lint:*",
     "lint:modulik": "eslint modulik/src",
     "lint:test": "eslint test/*/resources/**/* test/*/*.spec.js test/*/modulik.js",
     "example": "nodemon -q -w src -x \"yarn --cwd example start\"",
-    "postinstall": "yarn --cwd test/main install && yarn --cwd test/transpilation install"
+    "postinstall": "[ \"$CI\" != true ] && yarn --cwd test/main install && yarn --cwd test/transpilation install || echo Skipping dependencies installation in tests projects"
   },
   "devDependencies": {
     "@rollup/plugin-typescript": "^8.3.1",

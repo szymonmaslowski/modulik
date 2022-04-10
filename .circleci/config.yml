@@ -1,39 +1,108 @@
-version: 2
+version: 2.1
 
-defaults: &defaults
-  working_directory: ~/repo
-  docker:
-    - image: circleci/node:8.16.0
+executors:
+  node-8:
+    working_directory: /tmp/project
+    docker:
+      - image: circleci/node:8.16.0
+        environment:
+          CI: "true"
+  node-16:
+    working_directory: /tmp/project
+    docker:
+      - image: circleci/node:16.13.1
+        environment:
+          CI: "true"
 
 jobs:
-  test:
-    <<: *defaults
+  install dependencies and build:
+    executor: node-16
     steps:
       - checkout
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "yarn.lock" }}
-            - v1-dependencies-
-      - run: yarn install --frozen-lockfile
+            - v1-dependencies-node-16-{{ checksum "yarn.lock" }}
+            - v1-dependencies-node-16-
       - run:
-          name: Run lint
-          command: yarn lint
-      - run:
-          name: Run tests
-          command: yarn test
+          name: Install dependencies
+          command: yarn install --frozen-lockfile
       - save_cache:
           paths:
             - node_modules
-          key: v1-dependencies-{{ checksum "yarn.lock" }}
+          key: v1-dependencies-node-16-{{ checksum "yarn.lock" }}
+      - run:
+          name: Build
+          command: yarn build
       - persist_to_workspace:
-          root: ~/repo
-          paths: .
+          root: /tmp/project
+          paths:
+            - .
 
-  deploy:
-    <<: *defaults
+  test main on node 8:
+    executor: node-8
     steps:
       - attach_workspace:
-          at: ~/repo
+          at: /tmp/project
+      - restore_cache:
+          keys:
+            - v1-dependencies-node-8-{{ checksum "test/main/yarn.lock" }}
+            - v1-dependencies-node-8-
+      - run: yarn --cwd test/main install --frozen-lockfile
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-node-8-{{ checksum "test/main/yarn.lock" }}
+      - run:
+          name: Run main tests
+          command: yarn --cwd test/main start
+
+  test all on node 16:
+    executor: node-16
+    steps:
+      - attach_workspace:
+          at: /tmp/project
+      - restore_cache:
+          keys:
+            - v1-dependencies-node-16-{{ checksum "test/main/yarn.lock" }}-{{ checksum "test/transpilation/yarn.lock" }}
+      - run:
+          name: Install test dependencies
+          command: |
+            yarn --cwd test/main install --frozen-lockfile
+            yarn --cwd test/transpilation install --frozen-lockfile
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-node-16-{{ checksum "test/main/yarn.lock" }}-{{ checksum "test/transpilation/yarn.lock" }}
+      - run:
+          name: Run all tests
+          command: yarn test
+
+  lint:
+    executor: node-16
+    steps:
+      - attach_workspace:
+          at: /tmp/project
+      - restore_cache:
+          keys:
+            - v1-dependencies-node-16-{{ checksum "test/main/yarn.lock" }}-{{ checksum "test/transpilation/yarn.lock" }}
+      - run:
+          name: Install test dependencies
+          command: |
+            yarn --cwd test/main install --frozen-lockfile
+            yarn --cwd test/transpilation install --frozen-lockfile
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-node-16-{{ checksum "test/main/yarn.lock" }}-{{ checksum "test/transpilation/yarn.lock" }}
+      - run:
+          name: Lint
+          command: yarn lint
+
+  deploy:
+    executor: node-16
+    steps:
+      - attach_workspace:
+          at: /tmp/project
       - run:
           name: Authenticate with registry
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/repo/.npmrc
@@ -45,13 +114,33 @@ workflows:
   version: 2
   workflow:
     jobs:
-      - test:
+      - install dependencies and build:
+          filters:
+            tags:
+              only: /^v.*/
+      - test main on node 8:
+          requires:
+            - install dependencies and build
+          filters:
+            tags:
+              only: /^v.*/
+      - test all on node 16:
+          requires:
+            - install dependencies and build
+          filters:
+            tags:
+              only: /^v.*/
+      - lint:
+          requires:
+            - install dependencies and build
           filters:
             tags:
               only: /^v.*/
       - deploy:
           requires:
-            - test
+            - test main on node 8
+            - test all on node 16
+            - lint
           filters:
             tags:
               only: /^v.*/
