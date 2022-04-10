@@ -33,7 +33,7 @@ interface ModulikModule<ModuleBody> extends EventEmitter {
   on(eventName: ModulikEvents.failed, listener: (error: Error) => void): this;
 }
 
-const modulik = <ModuleBody>(
+const modulik = <ModuleBody = any>(
   pathOrOptions: InputOptionsFirstArg | string,
   options?: InputOptionsSecondArg,
 ): ModulikModule<ModuleBody> => {
