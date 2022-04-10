@@ -55,9 +55,8 @@ const modulik = <ModuleBody>(
     )
     .filter(isItFirstSuchItem);
 
-  const watchConfig = (Array.isArray(providedConfig.watch)
-    ? providedConfig.watch
-    : []
+  const watchConfig = (
+    Array.isArray(providedConfig.watch) ? providedConfig.watch : []
   )
     .concat(providedConfig.path)
     .filter(isItFirstSuchItem)

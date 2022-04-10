@@ -30,7 +30,8 @@ import {
   ArgStopFSWatcher,
   ArgTerminateBufferedExecutions,
   ArgResolveModule,
-  ReadinessData, ArgRejectModuleWithSerializationError,
+  ReadinessData,
+  ArgRejectModuleWithSerializationError,
 } from './types';
 import { ensureMachineIsValidAndCall } from './utils';
 

@@ -22,7 +22,7 @@ export const isMachineValid = <
   C,
   S,
   E extends EventObject,
-  T extends Typestate<C>
+  T extends Typestate<C>,
 >(
   machine: ActorRefFrom<StateMachine<C, S, E, T>> | null,
 ): machine is ActorRefFrom<StateMachine<C, S, E, T>> & ObjectWithStopCallback =>
@@ -33,7 +33,7 @@ export const ensureMachineIsValidAndCall = <
   S,
   E extends EventObject,
   T extends Typestate<C>,
-  Result
+  Result,
 >(
   machine: ActorRefFrom<StateMachine<C, S, E, T>> | null,
   callback: (

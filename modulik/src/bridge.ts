@@ -57,9 +57,7 @@ interface ParentMessageHandlers {
 }
 
 interface ChildMessageHandlers {
-  [ChildMessageType.executionResult]: MessageHandler<
-    ChildMessageExecutionResultData
-  >;
+  [ChildMessageType.executionResult]: MessageHandler<ChildMessageExecutionResultData>;
   [ChildMessageType.ready]: MessageHandler<ChildMessageReadyData>;
 }
 
@@ -134,11 +132,11 @@ const createChildController = () => {
     areThereExecutionsBuffered,
     resolveExecution,
     resolveAllExecutions,
-    makeMessageHandler: (handlers: ChildMessageHandlers) => ({
-      type,
-      data,
-    }: // @ts-ignore
-    ChildMessageReady | ChildMessageExecutionResult) => handlers[type](data),
+    makeMessageHandler:
+      (handlers: ChildMessageHandlers) =>
+      ({ type, data }: ChildMessageReady | ChildMessageExecutionResult) =>
+        // @ts-ignore
+        handlers[type](data),
   };
 };
 
@@ -153,10 +151,10 @@ const parentController = {
     type: ChildMessageType.executionResult,
     data,
   }),
-  makeMessageHandler: (handlers: ParentMessageHandlers) => ({
-    type,
-    data,
-  }: ParentMessageExecute) => handlers[type](data),
+  makeMessageHandler:
+    (handlers: ParentMessageHandlers) =>
+    ({ type, data }: ParentMessageExecute) =>
+      handlers[type](data),
 };
 
 export { createChildController, parentController };

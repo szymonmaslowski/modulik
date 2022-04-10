@@ -18,6 +18,7 @@ module.exports = {
         allow: ['error', 'info'],
       },
     ],
+    'prefer-object-spread': 'off',
     'prettier/prettier': 'error',
   },
   env: {

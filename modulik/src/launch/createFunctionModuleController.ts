@@ -30,17 +30,17 @@ const createFunctionModuleController = <ModuleBody>() => {
     PromiseActions<ModuleBodyResult<ModuleBody>>
   >();
 
-  const create = (callback: FunctionModuleExecutionCallback) => (
-    ...args: ModuleBodyArgs<ModuleBody>
-  ) =>
-    new Promise<ModuleBodyResult<ModuleBody>>((resolve, reject) => {
-      const id = v4();
-      registeredExecutions.set(id, {
-        reject,
-        resolve,
+  const create =
+    (callback: FunctionModuleExecutionCallback) =>
+    (...args: ModuleBodyArgs<ModuleBody>) =>
+      new Promise<ModuleBodyResult<ModuleBody>>((resolve, reject) => {
+        const id = v4();
+        registeredExecutions.set(id, {
+          reject,
+          resolve,
+        });
+        callback({ args, id });
       });
-      callback({ args, id });
-    });
 
   const get = (id: string) => {
     const execution = registeredExecutions.get(id);

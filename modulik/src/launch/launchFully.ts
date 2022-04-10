@@ -31,12 +31,11 @@ const launchFully = <ModuleBody>({
 
   const restartRequestResolversQueue = new Set<PromiseResolve>();
   const restartRequestRejectersQueue = new Set<PromiseReject>();
-  const getRestartRequestPromise = () => {
-    return new Promise((resolve, reject) => {
+  const getRestartRequestPromise = () =>
+    new Promise((resolve, reject) => {
       restartRequestResolversQueue.add(resolve);
       restartRequestRejectersQueue.add(reject);
     });
-  };
   const resolveRestartRequestPromises = () => {
     restartRequestResolversQueue.forEach(resolve => resolve(undefined));
     restartRequestResolversQueue.clear();
