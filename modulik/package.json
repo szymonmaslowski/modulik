@@ -5,6 +5,10 @@
   "repository": "szymonmaslowski/modulik/modulik",
   "license": "MIT",
   "author": "Szymon Maslowski <mr.szymon.maslowski@gmail.com>",
+  "files": [
+    "lib",
+    "CHANGELOG.md"
+  ],
   "keywords": [
     "hmr",
     "node",
