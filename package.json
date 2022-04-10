@@ -8,9 +8,11 @@
     "build": "rimraf modulik/lib && rollup -c",
     "build:watch": "rimraf modulik/lib && rollup -c --watch",
     "test": "mocha test/main/*.spec.js && yarn --cwd test/transpilation start",
-    "lint": "eslint modulik/src",
+    "lint": "run-s lint:*",
+    "lint:modulik": "eslint modulik/src",
+    "lint:test": "eslint test/*/resources/**/* test/*/*.spec.js test/*/modulik.js",
     "example": "nodemon -q -w src -x \"yarn --cwd example start\"",
-    "postinstall": "yarn --cwd test/transpilation install"
+    "postinstall": "yarn --cwd test/main install && yarn --cwd test/transpilation install"
   },
   "devDependencies": {
     "@rollup/plugin-typescript": "^8.3.1",
@@ -34,6 +36,7 @@
     "lint-staged": "^9.0.2",
     "mocha": "^9.2.2",
     "nodemon": "^2.0.15",
+    "npm-run-all": "^4.1.5",
     "prettier": "^2.6.2",
     "rimraf": "^2.6.3",
     "rollup": "^2.70.1",

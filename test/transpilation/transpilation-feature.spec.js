@@ -16,7 +16,7 @@ describe('Transpilation feature', () => {
     {
       name: 'ts',
       module: './resources/ts-number-module',
-      transpiler: 'ts',
+      transpiler: 'typescript',
     },
   ].forEach(({ name, module, transpiler }) => {
     it(`transpiles ${name} module correctly`, async () => {
@@ -40,7 +40,7 @@ describe('Transpilation feature', () => {
     {
       name: 'ts',
       module: './resources/ts-mixed-export-module',
-      transpiler: 'ts',
+      transpiler: 'typescript',
     },
   ].forEach(({ name, module, transpiler }) => {
     it(`prioritizes default export of ${name} module`, async () => {
@@ -65,7 +65,7 @@ describe('Transpilation feature', () => {
     {
       name: 'ts',
       module: './resources/ts-named-export-module',
-      transpiler: 'ts',
+      transpiler: 'typescript',
     },
   ].forEach(({ name, module, transpiler }) => {
     it(`exposes object with all named exports of ${name} module if there is no default export in that module`, async () => {
@@ -94,7 +94,7 @@ describe('Transpilation feature', () => {
     {
       name: 'ts',
       module: './resources/ts-function-module',
-      transpiler: 'ts',
+      transpiler: 'typescript',
       expectedResult: 'ts-function-module.ts',
     },
   ].forEach(({ name, module, transpiler, expectedResult }) => {
