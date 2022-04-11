@@ -25,9 +25,7 @@ your application keeping the rest up and running continuously.
 
 Read the [modulik vs nodemon](#modulik-vs-nodemon) section to learn the difference.
 
-Check out the [example](example) project to see **modulik** in action!
-It shows real life example of how to modulik can enhance the development
-experience of node server supporting SSR and serving assets of client app.
+Check out the [Simple usage example](#simple-usage-example) to see **modulik** in action!
 
 ## Installation
 
@@ -89,7 +87,9 @@ This way we achieve automatic application restarts on two levels:
 
 Great job! 🎉
 
-For more sophisticated usage example check out the [example](example) project.
+For more sophisticated usage example check out the **[example](example) project**
+showing a real life example of how modulik can enhance the development experience
+of node server supporting SSR and serving assets of client app.
 
 ## API
 
