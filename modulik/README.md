@@ -127,7 +127,7 @@ modulik('./path/to/module', {
   transpilerOptions: {}
 });
 ```
- 
+
 ### ModuleWrapper
 
  - Extends <[EventEmitter](https://nodejs.org/api/events.html)>
@@ -164,7 +164,7 @@ const myLuckyNumber = await luckyNumberModulik.module;
 If your module exports a function, then the `ModuleWrapper.module` property will expose
 a corresponding function too. It will be a representation of your function, so you can
 execute it in order to execute your function and access its result.
- 
+
 >  You can access a function result **only via Promise API** even if your module
 is not promise based
 
@@ -199,7 +199,7 @@ console.info('My module is restarted and ready to be accessed');
 Turns of the HMR functionality. Module will stop to restart on changes and keep the
 latest body exposed from the `ModuleWrapper.module` property. In case the latest body
 was a function all executions of that function will be rejected.
- 
+
 ```js
 await exampleModulik.kill();
 try {
