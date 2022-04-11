@@ -1,5 +1,25 @@
 import { ExecutionId, ModuleBodyFunctionArgs, ModuleType } from '../types';
 
+export enum ChildProcessEventType {
+  ready = 'ready',
+  stopRequested = 'stopRequested',
+  exited = 'exited',
+}
+
+export enum FSWatcherEventType {
+  ready = 'ready',
+  stopRequested = 'stopRequested',
+  stopped = 'stopped',
+}
+
+export enum MainEventType {
+  start = 'start',
+  killRequested = 'killRequested',
+  execute = 'execute',
+  moduleChanged = 'moduleChanged',
+  restartRequested = 'restartRequested',
+}
+
 export interface ReadinessData {
   body: any;
   serializable: boolean;

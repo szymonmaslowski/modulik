@@ -9,8 +9,8 @@ import {
 } from 'xstate';
 import { EventObject, Typestate } from 'xstate/lib/types';
 import { ExecutionId, ModuleBodyFunctionArgs } from '../types';
-import { ChildProcessEventType, ChildProcessMachine } from './childProcess';
-import { FSWatcherEventType, FSWatcherMachine } from './fsWatcher';
+import { ChildProcessMachine } from './childProcess';
+import { FSWatcherMachine } from './fsWatcher';
 import { ensureMachineIsValidAndCall, isMachineValid } from './utils';
 import {
   ArgAreThereExecutionsBuffered,
@@ -34,6 +34,9 @@ import {
   ArgReleaseBufferedExecutions,
   ArgResolveModule,
   ArgTerminateBufferedExecutions,
+  ChildProcessEventType,
+  FSWatcherEventType,
+  MainEventType,
 } from './types';
 
 const { pure } = actions;
@@ -44,14 +47,6 @@ type FSWatcherContextProperty = ActorRefFrom<FSWatcherMachine>;
 interface MainContext {
   childProcess: ChildProcessContextProperty | null;
   fsWatcher: FSWatcherContextProperty | null;
-}
-
-export enum MainEventType {
-  start = 'start',
-  killRequested = 'killRequested',
-  execute = 'execute',
-  moduleChanged = 'moduleChanged',
-  restartRequested = 'restartRequested',
 }
 
 interface EventStart {

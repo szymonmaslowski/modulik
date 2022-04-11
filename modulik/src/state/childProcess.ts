@@ -2,6 +2,7 @@ import { assign, createMachine } from 'xstate';
 import {
   ArgStartChildProcess,
   ArgStopChildProcess,
+  ChildProcessEventType,
   ReadinessData,
 } from './types';
 
@@ -9,12 +10,6 @@ interface ChildProcessContext {
   exitedCleanly: boolean;
   transpilerError: boolean;
   readinessData: ReadinessData | null;
-}
-
-export enum ChildProcessEventType {
-  ready = 'ready',
-  stopRequested = 'stopRequested',
-  exited = 'exited',
 }
 
 interface EventExitedData {

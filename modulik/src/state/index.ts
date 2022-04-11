@@ -1,9 +1,7 @@
 import { interpret } from 'xstate';
-import createChildProcessMachine, {
-  ChildProcessEventType,
-} from './childProcess';
-import createFSWatcherMachine, { FSWatcherEventType } from './fsWatcher';
-import createMainMachine, { MainEventType } from './main';
+import createChildProcessMachine from './childProcess';
+import createFSWatcherMachine from './fsWatcher';
+import createMainMachine from './main';
 import { ExecutionId, ModuleBodyFunctionArgs } from '../types';
 import {
   ArgAreThereExecutionsBuffered,
@@ -30,8 +28,11 @@ import {
   ArgStopFSWatcher,
   ArgTerminateBufferedExecutions,
   ArgResolveModule,
-  ReadinessData,
   ArgRejectModuleWithSerializationError,
+  ChildProcessEventType,
+  FSWatcherEventType,
+  MainEventType,
+  ReadinessData,
 } from './types';
 import { ensureMachineIsValidAndCall } from './utils';
 

@@ -1,11 +1,9 @@
 import { createMachine } from 'xstate';
-import { ArgStartFSWatcher, ArgStopFSWatcher } from './types';
-
-export enum FSWatcherEventType {
-  ready = 'ready',
-  stopRequested = 'stopRequested',
-  stopped = 'stopped',
-}
+import {
+  ArgStartFSWatcher,
+  ArgStopFSWatcher,
+  FSWatcherEventType,
+} from './types';
 
 interface FSWatcherEvent {
   type: FSWatcherEventType;
