@@ -2,7 +2,12 @@
   "name": "modulik",
   "version": "0.3.1",
   "main": "lib/modulik.js",
-  "repository": "szymonmaslowski/modulik/modulik",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/szymonmaslowski/modulik.git",
+    "directory": "modulik"
+  },
+  "homepage": "https://github.com/szymonmaslowski/modulik/tree/master/modulik#readme",
   "license": "MIT",
   "author": "Szymon Maslowski <mr.szymon.maslowski@gmail.com>",
   "files": [
