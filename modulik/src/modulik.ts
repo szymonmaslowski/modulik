@@ -18,25 +18,32 @@ const systemSupportedExtensions = Object.keys(require.extensions).map(e =>
   e.replace('.', ''),
 );
 
-enum ModulikEvents {
-  restart = 'restart',
-  ready = 'ready',
-  failed = 'failed',
-}
+const modulikEventFailed = 'failed';
+const modulikEventReady = 'ready';
+const modulikEventRestart = 'restart';
 
-interface ModulikModule<ModuleBody> extends EventEmitter {
+interface Modulik<ModuleBody> extends EventEmitter {
   readonly module: Promise<ModuleBody>;
   restart: () => Promise<void>;
   kill: () => Promise<void>;
-  on(eventName: ModulikEvents.ready, listener: () => void): this;
-  on(eventName: ModulikEvents.restart, listener: () => void): this;
-  on(eventName: ModulikEvents.failed, listener: (error: Error) => void): this;
+  on(
+    eventName: typeof modulikEventFailed,
+    listener: (error: Error) => void | Promise<void>,
+  ): this;
+  on(
+    eventName: typeof modulikEventReady,
+    listener: () => void | Promise<void>,
+  ): this;
+  on(
+    eventName: typeof modulikEventRestart,
+    listener: () => void | Promise<void>,
+  ): this;
 }
 
 const modulik = <ModuleBody = any>(
   pathOrOptions: InputOptionsFirstArg | string,
   options?: InputOptionsSecondArg,
-): ModulikModule<ModuleBody> => {
+): Modulik<ModuleBody> => {
   const providedConfig = Object.assign(
     {},
     typeof pathOrOptions === 'object' ? pathOrOptions : { path: pathOrOptions },
@@ -104,15 +111,15 @@ const modulik = <ModuleBody = any>(
     // Prevent node from complaining about unhandled rejection
     moduleBodyPromise.catch(() => {});
 
-    emitter.emit(ModulikEvents.restart);
+    emitter.emit(modulikEventRestart);
   };
   const resolveModule = (moduleBody: ModuleBody) => {
     resolveModuleBodyPromise(moduleBody);
-    emitter.emit(ModulikEvents.ready);
+    emitter.emit(modulikEventReady);
   };
   const rejectModule = (error: Error) => {
     rejectModuleBodyPromise(error);
-    emitter.emit(ModulikEvents.failed, error);
+    emitter.emit(modulikEventFailed, error);
   };
 
   recreateModuleBodyPromise();

@@ -3,7 +3,7 @@ export enum TranspilerType {
   typescript = 'typescript',
 }
 
-type TranspilerOptions = Object;
+type TranspilerOptions = object;
 
 interface InputOptionsCommon {
   disabled?: boolean;
@@ -37,9 +37,7 @@ export interface Config {
 
 export type PromiseResolve<Value = undefined> = (value: Value) => void;
 
-export interface PromiseReject {
-  (error: Error): void;
-}
+export type PromiseReject = (error: Error) => void;
 
 export interface PromiseActions<Value> {
   reject: PromiseReject;
