@@ -27,7 +27,13 @@ const launchPhantomly = <ModuleBody>({
       return;
     }
 
-    const moduleBody: ModuleBody = importedModule.default || importedModule;
+    const moduleHavingDefaultExport =
+      importedModule &&
+      typeof importedModule === 'object' &&
+      'default' in importedModule;
+    const moduleBody: ModuleBody = moduleHavingDefaultExport
+      ? importedModule.default
+      : importedModule;
     resolveModule(moduleBody);
     logger.info('Ready.');
   });
