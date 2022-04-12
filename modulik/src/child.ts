@@ -1,4 +1,4 @@
-const { parentController } = require('./bridge');
+import { parentController } from './bridge';
 
 process.on('SIGTERM', () => {
   process.exit(0);
@@ -8,7 +8,7 @@ const [modulePath, rawTranspiler] = process.argv.slice(2);
 const transpiler = JSON.parse(rawTranspiler);
 
 // eslint-disable-next-line consistent-return
-const importTranspilerOrExit = packageName => {
+const importTranspilerOrExit = (packageName: string) => {
   try {
     return require(packageName);
   } catch (e) {
@@ -52,9 +52,13 @@ if (moduleType === 'function') {
           const data = await childModule(...args);
           result = { data, error: false };
         } catch (e) {
-          result = { data: e.message, error: true };
+          const errorMessage =
+            e instanceof Error
+              ? e.message
+              : 'Failed to execute the function exported by a given module';
+          result = { data: errorMessage, error: true };
         }
-        process.send(
+        process.send!(
           parentController.executionResult({ correlationId, result }),
         );
       },
@@ -62,7 +66,7 @@ if (moduleType === 'function') {
   );
 }
 
-process.send(
+process.send!(
   parentController.ready({
     body: serializable ? childModule : undefined,
     serializable,

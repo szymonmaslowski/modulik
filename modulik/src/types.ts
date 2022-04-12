@@ -51,9 +51,11 @@ export type ModuleBodyFunctionArgs = any[];
 export type ExecutionId = string;
 
 export type ModuleType =
-  | 'number'
   | 'string'
+  | 'number'
+  | 'bigint'
   | 'boolean'
+  | 'symbol'
   | 'undefined'
   | 'object'
   | 'function';
