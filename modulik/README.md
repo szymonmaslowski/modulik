@@ -88,7 +88,7 @@ This way we achieve automatic application restarts on two levels:
 Great job! 🎉
 
 > There is the same app but written in typescript available for you to play around. Check out the
-[Simple typescript greetings app](examples/greetings). Take a look also on the other available [example apps](examples#readme).
+[Simple typescript greetings app](../examples/greetings). Take a look also on the other available [example apps](../examples#readme).
 
 ## API
 

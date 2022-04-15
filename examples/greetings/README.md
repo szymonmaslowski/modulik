@@ -14,7 +14,7 @@ const greet = await greetModulik.module; // The greet is of type (name: string) 
 
 Notice the fact that the type of the `greet` module exposed by the modulik is different
 than the `Greet` type.
-The difference is in the return type which for the exposed `greet` module is wrapped in `Promise`
+The difference is in the return type which for the exposed `greet` module is wrapped in `Promise`.
 
-> If provided type is a function type and its return type is not a `Promise` then modulik
+> ⚠️ If provided type is a function type and its return type is not a `Promise` then modulik
 always wraps it with the `Promise`.
