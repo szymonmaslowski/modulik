@@ -9,7 +9,7 @@ module.exports = {
     'import/no-extraneous-dependencies': [
       'error',
       {
-        devDependencies: ['./inspector', 'rollup.config.js'],
+        devDependencies: ['rollup.config.js'],
       },
     ],
     'no-console': [
