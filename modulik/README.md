@@ -8,6 +8,7 @@ In other words it gives the Hot Module Replacement (HMR) functionality for the n
  - [Description](#description)
  - [Installation](#installation)
  - [Simple usage example](#simple-usage-example)
+ - [Example projects](#example-projects)
  - [API](#api)
  - [Transpilation feature](#transpilation-feature)
  - [Limitations](#limitations)
@@ -88,7 +89,11 @@ This way we achieve automatic application restarts on two levels:
 Great job! 🎉
 
 > There is the same app but written in typescript available for you to play around. Check out the
-[Simple typescript greetings app](../examples/greetings). Take a look also on the other available [example apps](../examples#readme).
+[Simple typescript greetings app](../examples/greetings).
+
+## Example projects
+
+Take a look on the other available [example apps](../examples#readme).
 
 ## API
 
