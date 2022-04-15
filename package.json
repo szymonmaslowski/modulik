@@ -1,52 +1,48 @@
 {
   "name": "modulik",
-  "version": "0.3.1",
-  "main": "src/modulik.js",
-  "repository": "fredZgred/modulik",
-  "license": "MIT",
-  "author": "Szymon Maslowski <i.am.szymon.maslowski@gmail.com>",
-  "keywords": [
-    "monitor",
-    "restart",
-    "watcher",
-    "module",
-    "submodule",
-    "node",
-    "server",
-    "file",
-    "system",
-    "process"
+  "private": "true",
+  "workspaces": [
+    "modulik"
   ],
-  "files": [
-    "src"
-  ],
-  "engines": {
-    "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
-  },
   "scripts": {
-    "test": "mocha test/*.spec.js",
-    "start": "nodemon -q -w src -x \"yarn --cwd example start\""
-  },
-  "dependencies": {
-    "chokidar": "^3.0.1",
-    "get-caller-file": "^2.0.5",
-    "uuid": "^3.3.2"
+    "build": "rimraf modulik/lib && rollup -c",
+    "build:watch": "rimraf modulik/lib && rollup -c --watch",
+    "test": "run-s test:*",
+    "test:main": "[ \"$CI\" = true ] && yarn --cwd test/main start || mocha test/main/*.spec.js",
+    "test:transpilation": "yarn --cwd test/transpilation start",
+    "lint": "run-s lint:*",
+    "lint:modulik": "eslint modulik/src",
+    "lint:test": "eslint test/*/resources/**/* test/*/*.spec.js test/*/modulik.js",
+    "postinstall": "[ \"$CI\" != true ] && yarn --cwd test/main install && yarn --cwd test/transpilation install || echo Skipping dependencies installation in tests projects"
   },
   "devDependencies": {
-    "babel-eslint": "^10.0.2",
-    "eslint": "5.3.0",
-    "eslint-config-airbnb": "17.1.1",
-    "eslint-config-airbnb-base": "13.2.0",
-    "eslint-config-prettier": "^6.0.0",
-    "eslint-plugin-import": "^2.18.0",
-    "eslint-plugin-jsx-a11y": "^6.2.3",
-    "eslint-plugin-prettier": "^3.1.0",
-    "eslint-plugin-react": "^7.14.2",
+    "@rollup/plugin-typescript": "^8.3.1",
+    "@types/chokidar": "^2.1.3",
+    "@types/node": "^17.0.21",
+    "@types/uuid": "^8.3.4",
+    "@typescript-eslint/eslint-plugin": "^5.18.0",
+    "@typescript-eslint/parser": "^5.18.0",
+    "eslint": "^8.13.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-airbnb-typescript": "^17.0.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-jsx-a11y": "^6.5.1",
+    "eslint-plugin-prettier": "^4.0.0",
+    "eslint-plugin-react": "^7.29.4",
+    "eslint-plugin-react-hooks": "^4.4.0",
+    "fast-glob": "^3.2.11",
     "husky": "^3.0.0",
     "lint-staged": "^9.0.2",
-    "mocha": "^6.2.2",
-    "nodemon": "^1.19.1",
-    "prettier": "^1.18.2",
-    "rimraf": "^2.6.3"
+    "mocha": "^9.2.2",
+    "nodemon": "^2.0.15",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^2.6.2",
+    "rimraf": "^2.6.3",
+    "rollup": "^2.70.1",
+    "rollup-plugin-dts": "^4.2.1",
+    "tslib": "^2.3.1",
+    "typescript": "^4.6.3"
   }
 }

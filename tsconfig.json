@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "lib": ["es2017"],
+    "module": "esnext",
+    "moduleResolution": "Node",
+    "rootDir": "modulik/src",
+    "strict": true,
+    "target": "es2017",
+    "types": ["node"]
+  }
+}

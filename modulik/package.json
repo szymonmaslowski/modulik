@@ -1,0 +1,55 @@
+{
+  "name": "modulik",
+  "version": "0.3.1",
+  "main": "./lib/modulik.js",
+  "types": "./lib/modulik.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/szymonmaslowski/modulik.git",
+    "directory": "modulik"
+  },
+  "homepage": "https://github.com/szymonmaslowski/modulik/tree/master/modulik#readme",
+  "license": "MIT",
+  "author": "Szymon Maslowski <mr.szymon.maslowski@gmail.com>",
+  "files": [
+    "lib",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "hmr",
+    "node",
+    "module",
+    "replacement",
+    "monitor",
+    "restart",
+    "watcher",
+    "submodule",
+    "child",
+    "childmodule",
+    "server",
+    "file",
+    "system",
+    "process",
+    "nodemon"
+  ],
+  "engines": {
+    "node": ">=8.16.0"
+  },
+  "dependencies": {
+    "chokidar": "^3.0.1",
+    "uuid": "^8.3.2",
+    "xstate": "^4.26.1"
+  },
+  "peerDependencies": {
+    "@babel/register": "^7.0.0",
+    "ts-node": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@babel/register": {
+      "optional": true
+    },
+    "ts-node": {
+      "optional": true
+    }
+  }
+}

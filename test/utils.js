@@ -2,7 +2,7 @@ const { writeFileSync, existsSync, readFileSync } = require('fs');
 const chokidar = require('chokidar');
 const rimraf = require('rimraf');
 
-const wait = ms =>
+const wait = (ms = 0) =>
   new Promise(resolve => {
     setTimeout(resolve, ms);
   });
@@ -40,22 +40,30 @@ const scheduler = {
   },
 };
 
+const attachListener = (paths, events, onChange) =>
+  new Promise(resolve => {
+    const fsWatcher = chokidar.watch(paths, { ignoreInitial: true });
+    events.forEach(event => {
+      fsWatcher.on(event, async () => {
+        await wait();
+        await fsWatcher.close();
+        await wait(10);
+        onChange();
+      });
+    });
+    fsWatcher.on('ready', async () => {
+      await wait(10);
+      resolve();
+    });
+  });
+
 const writeFileAndWait = (path, content) =>
   new Promise(async resolve => {
     if (existsSync(path) && readFileSync(path, 'utf-8') === content) {
       resolve();
       return;
     }
-    const fsWatcher = chokidar.watch(path, { ignoreInitial: true });
-    const finish = () => {
-      process.nextTick(async () => {
-        await fsWatcher.close();
-        await wait(10);
-        resolve();
-      });
-    };
-    fsWatcher.on('add', finish).on('change', finish);
-    await wait(10);
+    await attachListener(path, ['add', 'change'], resolve);
     writeFileSync(path, content);
   });
 
@@ -65,17 +73,7 @@ const deleteFileAndWait = path =>
       resolve();
       return;
     }
-
-    const fsWatcher = chokidar
-      .watch(path, { ignoreInitial: true })
-      .on('unlink', () => {
-        process.nextTick(async () => {
-          await fsWatcher.close();
-          await wait(10);
-          resolve();
-        });
-      });
-    await wait(10);
+    await attachListener(path, ['unlink'], resolve);
     rimraf.sync(path);
   });
 

@@ -1,4 +1,5 @@
 node_modules/
 dist/
+modulik/lib
 *.log
 test/resources/fs-module.txt

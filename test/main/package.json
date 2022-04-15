@@ -1,0 +1,15 @@
+{
+  "name": "main",
+  "version": "0.0.0",
+  "private": "true",
+  "license": "MIT",
+  "scripts": {
+    "start": "mocha ./*.spec.js"
+  },
+  "dependencies": {
+    "modulik": "../../modulik"
+  },
+  "devDependencies": {
+    "mocha": "^7.2.0"
+  }
+}
