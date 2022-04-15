@@ -102,7 +102,8 @@ Take a look on the other available [example apps](../examples#readme).
 **modulik\<ModuleType>(modulePath[, options])**<br />
 **modulik\<ModuleType>(options)**
 
- - `ModuleType` (Only in Typescript) a type of the entity exported by the module
+ - `ModuleType` (only in Typescript) a type of the entity exported by the module.
+ Check out the [Simple typescript greetings app](../examples/greetings) to learn the details
  - `modulePath` *\<string>* Path to entry of the module. Specified file will be
  watched for changes
  - `options` *\<Object>*
@@ -122,7 +123,7 @@ Take a look on the other available [example apps](../examples#readme).
  - Returns: <[ModuleWrapper](#ModuleWrapper)>
 
 ```js
-modulik('./path/to/module', {
+modulik<MyModuleType>('./path/to/MyModule', {
   watch: ['./path/to/directory', '/absolute/path', './path/to/specific-module.js'],
   watchExtensions: ['txt'],
   disabled: PRODUCTION === true,
