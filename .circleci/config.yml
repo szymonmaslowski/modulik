@@ -105,10 +105,12 @@ jobs:
           at: /tmp/project
       - run:
           name: Authenticate with registry
-          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/repo/.npmrc
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ./.npmrc
       - run:
           name: Publish package
-          command: yarn workspace modulik publish
+          command: |
+            cd modulik
+            npm publish
 
 workflows:
   version: 2
