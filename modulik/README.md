@@ -97,7 +97,7 @@ Great job! 🎉
 **modulik\<ModuleType>(modulePath[, options])**<br />
 **modulik\<ModuleType>(options)**
 
- - `ModuleType` (Only for usage in Typescript) a type of the entity exported by the module
+ - `ModuleType` (Only in Typescript) a type of the entity exported by the module
  - `modulePath` *\<string>* Path to entry of the module. Specified file will be
  watched for changes
  - `options` *\<Object>*
@@ -119,10 +119,10 @@ Great job! 🎉
 ```js
 modulik('./path/to/module', {
   watch: ['./path/to/directory', '/absolute/path', './path/to/specific-module.js'],
-  watchExtensions: ['jsx'],
+  watchExtensions: ['txt'],
   disabled: PRODUCTION === true,
   quiet: true,
-  transpiler: 'typescript',
+  transpiler: 'typescript', // or 'babel'
   transpilerOptions: {}
 });
 ```
