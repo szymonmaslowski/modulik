@@ -20,6 +20,12 @@ module.exports = {
     ],
     'prefer-object-spread': 'off',
     'prettier/prettier': 'error',
+    'react/jsx-filename-extension': [
+      'error',
+      {
+        extensions: ['.js', '.jsx'],
+      },
+    ],
   },
   env: {
     browser: true,
@@ -31,5 +37,12 @@ module.exports = {
   parserOptions: {
     project: './tsconfig.json',
     tsconfigRootDir: __dirname,
+  },
+  settings: {
+    'import/resolver': {
+      node: {
+        extensions: ['.js', '.jsx', '.ts', '.tsx'],
+      },
+    },
   },
 };

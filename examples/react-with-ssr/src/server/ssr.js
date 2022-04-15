@@ -1,7 +1,7 @@
 import { renderToString } from 'react-dom/server';
 import renderApp from '../common/renderApp';
 
-module.exports = ({ title }) => {
+export default ({ title }) => {
   const app = renderApp(title);
   const appMarkup = renderToString(app);
   return `\

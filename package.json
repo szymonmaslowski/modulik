@@ -13,7 +13,6 @@
     "lint": "run-s lint:*",
     "lint:modulik": "eslint modulik/src",
     "lint:test": "eslint test/*/resources/**/* test/*/*.spec.js test/*/modulik.js",
-    "example": "nodemon -q -w src -x \"yarn --cwd example start\"",
     "postinstall": "[ \"$CI\" != true ] && yarn --cwd test/main install && yarn --cwd test/transpilation install || echo Skipping dependencies installation in tests projects"
   },
   "devDependencies": {

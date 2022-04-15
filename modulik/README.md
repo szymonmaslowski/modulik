@@ -1,6 +1,6 @@
-# modulik
+# Modulik
 
-**modulik** allows to restart a module independently of the rest of your application.
+**Modulik** allows to restart a module independently of the rest of your application.
 In other words it gives the Hot Module Replacement (HMR) functionality for the node.js environment.
 
 ## Table of contents
@@ -87,9 +87,8 @@ This way we achieve automatic application restarts on two levels:
 
 Great job! 🎉
 
-For more sophisticated usage example check out the **[example](example) project**
-showing a real life example of how modulik can enhance the development experience
-of node server supporting SSR and serving assets of client app.
+> There is the same app but written in typescript available for you to play around. Check out the
+[Simple typescript greetings app](examples/greetings). Take a look also on the other available [example apps](examples#readme).
 
 ## API
 
