@@ -1,15 +1,22 @@
 import EventEmitter from 'events';
 import path from 'path';
+import {
+  modulikEventFailed,
+  modulikEventReady,
+  modulikEventRestart,
+  transpilerTypeBabel,
+  transpilerTypeTypescript,
+} from './constants';
 import getCallerDirectoryPath from './getCallerDirectoryPath';
 import launch from './launch';
 import {
   Config,
   InputOptionsFirstArg,
   InputOptionsSecondArg,
+  ModulikModuleBody,
   PromiseReject,
   PromiseResolve,
   TranspilerConfigEntry,
-  TranspilerType,
 } from './types';
 
 const isItFirstSuchItem = (item: string, index: number, self: string[]) =>
@@ -18,12 +25,8 @@ const systemSupportedExtensions = Object.keys(require.extensions).map(e =>
   e.replace('.', ''),
 );
 
-const modulikEventFailed = 'failed';
-const modulikEventReady = 'ready';
-const modulikEventRestart = 'restart';
-
 interface Modulik<ModuleBody> extends EventEmitter {
-  readonly module: Promise<ModuleBody>;
+  readonly module: Promise<ModulikModuleBody<ModuleBody>>;
   restart: () => Promise<void>;
   kill: () => Promise<void>;
   on(
@@ -82,7 +85,9 @@ const modulik = <ModuleBody = any>(
   let transpilerConfig: TranspilerConfigEntry | false = false;
   if (
     providedConfig.transpiler &&
-    Object.values(TranspilerType).includes(providedConfig.transpiler)
+    [transpilerTypeBabel, transpilerTypeTypescript].includes(
+      providedConfig.transpiler,
+    )
   ) {
     transpilerConfig = {
       type: providedConfig.transpiler,

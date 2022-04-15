@@ -1,5 +1,5 @@
 import { v4 } from 'uuid';
-import { ModuleBodyFunctionArgs, ModuleType } from './types';
+import { GenericModuleBodyFunctionArgs, ModuleType } from './types';
 
 interface Message<Type extends string, Data extends object> {
   data: Data;
@@ -16,7 +16,7 @@ enum ChildMessageType {
 }
 
 interface ParentMessageExecuteData {
-  args: ModuleBodyFunctionArgs;
+  args: GenericModuleBodyFunctionArgs;
   correlationId: string;
 }
 
@@ -75,7 +75,7 @@ const createChildController = () => {
   >();
 
   const bufferExecution = (
-    args: ModuleBodyFunctionArgs,
+    args: GenericModuleBodyFunctionArgs,
     callback: BufferExecutionCallback,
   ) => {
     const correlationId = v4();

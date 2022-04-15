@@ -8,7 +8,7 @@ import {
   State,
 } from 'xstate';
 import { EventObject, Typestate } from 'xstate/lib/types';
-import { ExecutionId, ModuleBodyFunctionArgs } from '../types';
+import { ExecutionId, GenericModuleBodyFunctionArgs } from '../types';
 import { ChildProcessMachine } from './childProcess';
 import { FSWatcherMachine } from './fsWatcher';
 import { ensureMachineIsValidAndCall, isMachineValid } from './utils';
@@ -59,7 +59,7 @@ interface EventKillRequested {
 
 interface EventExecute {
   type: MainEventType.execute;
-  args: ModuleBodyFunctionArgs;
+  args: GenericModuleBodyFunctionArgs;
   executionId: ExecutionId;
 }
 

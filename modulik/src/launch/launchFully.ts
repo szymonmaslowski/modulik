@@ -3,16 +3,19 @@ import chokidar, { FSWatcher } from 'chokidar';
 import path from 'path';
 import { createChildController } from '../bridge';
 import createState from '../state';
+import {
+  childPath,
+  transpilerTypeBabel,
+  transpilerTypeTypescript,
+} from '../constants';
 import { PromiseReject, PromiseResolve, TranspilerType } from '../types';
 import createFunctionModuleController from './createFunctionModuleController';
 import createLogger from './logger';
 import { Args, LaunchApi } from './types';
 
-const childPath = path.resolve(__dirname, '../child.js');
-
 const mapOfTranspilerToModuleName: { [key in TranspilerType]: string } = {
-  [TranspilerType.babel]: '@babel/register',
-  [TranspilerType.typescript]: 'ts-node',
+  [transpilerTypeBabel]: '@babel/register',
+  [transpilerTypeTypescript]: 'ts-node',
 };
 
 const launchFully = <ModuleBody>({

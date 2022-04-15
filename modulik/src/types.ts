@@ -1,7 +1,8 @@
-export enum TranspilerType {
-  babel = 'babel',
-  typescript = 'typescript',
-}
+import { transpilerTypeBabel, transpilerTypeTypescript } from './constants';
+
+export type TranspilerType =
+  | typeof transpilerTypeBabel
+  | typeof transpilerTypeTypescript;
 
 type TranspilerOptions = object;
 
@@ -44,7 +45,28 @@ export interface PromiseActions<Value> {
   resolve: PromiseResolve<Value>;
 }
 
-export type ModuleBodyFunctionArgs = any[];
+export type GenericModuleBodyFunctionArgs = any[];
+
+type FunctionModule<Result extends any = any, Args extends any[] = any[]> = (
+  ...args: Args
+) => Result;
+
+export type FunctionModuleBodyArgs<ModuleBody> =
+  ModuleBody extends FunctionModule ? Parameters<ModuleBody> : never;
+
+export type FunctionModuleBodyResult<ModuleBody> =
+  ModuleBody extends FunctionModule<Promise<any>>
+    ? Awaited<ReturnType<ModuleBody>>
+    : ModuleBody extends FunctionModule
+    ? ReturnType<ModuleBody>
+    : never;
+
+export type ModulikModuleBody<ModuleBody> = ModuleBody extends FunctionModule
+  ? FunctionModule<
+      Promise<FunctionModuleBodyResult<ModuleBody>>,
+      FunctionModuleBodyArgs<ModuleBody>
+    >
+  : ModuleBody;
 
 export type ExecutionId = string;
 

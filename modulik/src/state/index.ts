@@ -2,7 +2,7 @@ import { interpret } from 'xstate';
 import createChildProcessMachine from './childProcess';
 import createFSWatcherMachine from './fsWatcher';
 import createMainMachine from './main';
-import { ExecutionId, ModuleBodyFunctionArgs } from '../types';
+import { ExecutionId, GenericModuleBodyFunctionArgs } from '../types';
 import {
   ArgAreThereExecutionsBuffered,
   ArgBufferExecution,
@@ -65,7 +65,7 @@ interface Args {
 }
 
 interface ApiExecuteArgs {
-  args: ModuleBodyFunctionArgs;
+  args: GenericModuleBodyFunctionArgs;
   executionId: ExecutionId;
 }
 

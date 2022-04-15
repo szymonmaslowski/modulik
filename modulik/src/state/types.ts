@@ -1,4 +1,8 @@
-import { ExecutionId, ModuleBodyFunctionArgs, ModuleType } from '../types';
+import {
+  ExecutionId,
+  GenericModuleBodyFunctionArgs,
+  ModuleType,
+} from '../types';
 
 export enum ChildProcessEventType {
   ready = 'ready',
@@ -27,12 +31,12 @@ export interface ReadinessData {
 }
 
 interface BufferExecutionArgs {
-  args: ModuleBodyFunctionArgs;
+  args: GenericModuleBodyFunctionArgs;
   executionId: ExecutionId;
 }
 
 interface BufferExecutionArgs {
-  args: ModuleBodyFunctionArgs;
+  args: GenericModuleBodyFunctionArgs;
   executionId: ExecutionId;
 }
 
