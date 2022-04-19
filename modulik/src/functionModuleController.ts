@@ -4,7 +4,7 @@ import {
   FunctionModuleBodyArgs,
   FunctionModuleBodyResult,
   PromiseActions,
-} from '../types';
+} from './types';
 
 interface FunctionModuleExecutionCallbackArgs {
   id: string;
@@ -15,7 +15,9 @@ type FunctionModuleExecutionCallback = (
   args: FunctionModuleExecutionCallbackArgs,
 ) => void;
 
-const createFunctionModuleController = <ModuleBody>() => {
+const createFunctionController = <ModuleBody>(
+  parseArguments: (args: any[]) => any[] = a => a,
+) => {
   const registeredExecutions = new Map<
     string,
     PromiseActions<FunctionModuleBodyResult<ModuleBody>>
@@ -23,8 +25,10 @@ const createFunctionModuleController = <ModuleBody>() => {
 
   const create =
     (callback: FunctionModuleExecutionCallback) =>
-    (...args: FunctionModuleBodyArgs<ModuleBody>) =>
+    (...rawArgs: FunctionModuleBodyArgs<ModuleBody>) =>
       new Promise<FunctionModuleBodyResult<ModuleBody>>((resolve, reject) => {
+        const args = parseArguments(rawArgs);
+
         const id = v4();
         registeredExecutions.set(id, {
           reject,
@@ -53,4 +57,4 @@ const createFunctionModuleController = <ModuleBody>() => {
   };
 };
 
-export default createFunctionModuleController;
+export default createFunctionController;

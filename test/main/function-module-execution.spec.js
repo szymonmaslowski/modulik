@@ -152,4 +152,22 @@ describe('Function module execution', () => {
     }
     throw new Error('Module did not throw');
   });
+
+  it('supports callback arguments', async () => {
+    const modulePath = path.resolve(__dirname, 'resources/callbacks-module.js');
+    const callbacksModulik = modulik(modulePath);
+    scheduler.add(async () => {
+      await callbacksModulik.kill();
+    });
+
+    const exposedFunction = await callbacksModulik.module;
+
+    assert.deepStrictEqual(
+      await exposedFunction(() => 'one', [() => 1, () => true], {
+        cb4: () => 1n,
+        cb5: () => new Map([[1, 1]]),
+      }),
+      ['one', 1, true, 1n, new Map([[1, 1]])],
+    );
+  });
 });

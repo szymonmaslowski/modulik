@@ -6,6 +6,7 @@ import { ExecutionId, GenericModuleBodyFunctionArgs } from '../types';
 import {
   ArgAreThereExecutionsBuffered,
   ArgBufferExecution,
+  ArgClearRegisteredCallbacks,
   ArgLogBufferedExecutionsTerminated,
   ArgLogCannotRestartKilledModule,
   ArgLogFailed,
@@ -39,6 +40,7 @@ import { ensureMachineIsValidAndCall } from './utils';
 interface Args {
   areThereExecutionsBuffered: ArgAreThereExecutionsBuffered;
   bufferExecution: ArgBufferExecution;
+  clearRegisteredCallbacks: ArgClearRegisteredCallbacks;
   logBufferedExecutionsTerminated: ArgLogBufferedExecutionsTerminated;
   logCannotRestartKilledModule: ArgLogCannotRestartKilledModule;
   logFailed: ArgLogFailed;
@@ -90,6 +92,7 @@ interface Api {
 const createState = ({
   areThereExecutionsBuffered,
   bufferExecution,
+  clearRegisteredCallbacks,
   logBufferedExecutionsTerminated,
   logCannotRestartKilledModule,
   logFailed,
@@ -127,6 +130,7 @@ const createState = ({
   const mainMachine = createMainMachine({
     areThereExecutionsBuffered,
     bufferExecution,
+    clearRegisteredCallbacks,
     childProcessMachine,
     fsWatcherMachine,
     logBufferedExecutionsTerminated,

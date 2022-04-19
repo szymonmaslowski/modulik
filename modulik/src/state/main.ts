@@ -15,6 +15,7 @@ import { ensureMachineIsValidAndCall, isMachineValid } from './utils';
 import {
   ArgAreThereExecutionsBuffered,
   ArgBufferExecution,
+  ArgClearRegisteredCallbacks,
   ArgLogBufferedExecutionsTerminated,
   ArgLogCannotRestartKilledModule,
   ArgLogFailed,
@@ -131,6 +132,7 @@ type MainTypestate = StateIdle | StateSetup | StateOtherThanIdleOrSetup;
 interface Args {
   areThereExecutionsBuffered: ArgAreThereExecutionsBuffered;
   bufferExecution: ArgBufferExecution;
+  clearRegisteredCallbacks: ArgClearRegisteredCallbacks;
   childProcessMachine: ChildProcessMachine;
   fsWatcherMachine: FSWatcherMachine;
   logBufferedExecutionsTerminated: ArgLogBufferedExecutionsTerminated;
@@ -168,6 +170,7 @@ const isState = <C, E extends EventObject, S, T extends Typestate<C>, R>(
 const createMainMachine = ({
   areThereExecutionsBuffered,
   bufferExecution,
+  clearRegisteredCallbacks,
   childProcessMachine,
   fsWatcherMachine,
   logBufferedExecutionsTerminated,
@@ -318,6 +321,7 @@ const createMainMachine = ({
             }),
           ),
         ],
+        exit: [pure(clearRegisteredCallbacks)],
         always: [
           {
             target: MainState.failed,

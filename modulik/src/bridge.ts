@@ -6,69 +6,102 @@ interface Message<Type extends string, Data extends object> {
   type: Type;
 }
 
-enum ParentMessageType {
+enum FromParentMessageType {
   execute = 'execute',
+  callbackExecutionResult = 'callbackExecutionResult',
 }
 
-enum ChildMessageType {
-  ready = 'ready',
+enum FromChildMessageType {
+  executeCallback = 'executeCallback',
   executionResult = 'executionResult',
+  ready = 'ready',
 }
 
-interface ParentMessageExecuteData {
+interface FromParentMessageExecuteData {
   args: GenericModuleBodyFunctionArgs;
-  correlationId: string;
+  executionId: string;
 }
 
-type ParentMessageExecute = Message<
-  ParentMessageType.execute,
-  ParentMessageExecuteData
+type FromParentMessageExecute = Message<
+  FromParentMessageType.execute,
+  FromParentMessageExecuteData
 >;
 
-interface ChildMessageReadyData {
+interface FromParentMessageCallbackExecutionResultDataResult {
+  error: boolean;
+  data: any;
+}
+
+interface FromParentMessageCallbackExecutionResultData {
+  executionId: string;
+  result: FromParentMessageCallbackExecutionResultDataResult;
+}
+
+type FromParentMessageCallbackExecutionResult = Message<
+  FromParentMessageType.callbackExecutionResult,
+  FromParentMessageCallbackExecutionResultData
+>;
+
+interface FromChildMessageReadyData {
   body: any;
   serializable: boolean;
   type: ModuleType;
 }
 
-type ChildMessageReady = Message<ChildMessageType.ready, ChildMessageReadyData>;
+type FromChildMessageReady = Message<
+  FromChildMessageType.ready,
+  FromChildMessageReadyData
+>;
 
-interface ChildMessageExecutionResultDataResult {
+interface FromChildMessageExecutionResultDataResult {
   error: boolean;
   data: any;
 }
 
-interface ChildMessageExecutionResultData {
-  correlationId: string;
-  result: ChildMessageExecutionResultDataResult;
+interface FromChildMessageExecutionResultData {
+  executionId: string;
+  result: FromChildMessageExecutionResultDataResult;
 }
 
-type ChildMessageExecutionResult = Message<
-  ChildMessageType.executionResult,
-  ChildMessageExecutionResultData
+type FromChildMessageExecutionResult = Message<
+  FromChildMessageType.executionResult,
+  FromChildMessageExecutionResultData
+>;
+
+interface FromChildMessageExecuteCallbackData {
+  callbackId: string;
+  executionId: string;
+  args: any[];
+}
+
+type FromChildMessageExecuteCallback = Message<
+  FromChildMessageType.executeCallback,
+  FromChildMessageExecuteCallbackData
 >;
 
 interface MessageHandler<Args extends object> {
   (args: Args): void;
 }
 
-interface ParentMessageHandlers {
-  [ParentMessageType.execute]: MessageHandler<ParentMessageExecuteData>;
+interface FromParentMessageHandlers {
+  [FromParentMessageType.callbackExecutionResult]: MessageHandler<FromParentMessageCallbackExecutionResultData>;
+  [FromParentMessageType.execute]: MessageHandler<FromParentMessageExecuteData>;
 }
 
-interface ChildMessageHandlers {
-  [ChildMessageType.executionResult]: MessageHandler<ChildMessageExecutionResultData>;
-  [ChildMessageType.ready]: MessageHandler<ChildMessageReadyData>;
+interface FromChildMessageHandlers {
+  [FromChildMessageType.executeCallback]: MessageHandler<FromChildMessageExecuteCallbackData>;
+  [FromChildMessageType.executionResult]: MessageHandler<FromChildMessageExecutionResultData>;
+  [FromChildMessageType.ready]: MessageHandler<FromChildMessageReadyData>;
 }
 
 type BufferExecutionCallback = (error: Error | undefined, data: any) => void;
 
-type ReleaseBufferedExecutionsSendMessageArg = (
-  message: ParentMessageExecute,
+type ReleaseBufferedExecutionsGetExecutionArg = (
+  executionData: FromParentMessageExecuteData,
 ) => void;
 
 const createChildController = () => {
-  const bufferOfExecutionMessages = new Set<ParentMessageExecute>();
+  const bufferOfExecutions = new Set<FromParentMessageExecuteData>();
   const childModuleExecutionCallbacks = new Map<
     string,
     BufferExecutionCallback
@@ -78,52 +111,46 @@ const createChildController = () => {
     args: GenericModuleBodyFunctionArgs,
     callback: BufferExecutionCallback,
   ) => {
-    const correlationId = v4();
-    childModuleExecutionCallbacks.set(correlationId, callback);
-    bufferOfExecutionMessages.add({
-      type: ParentMessageType.execute,
-      data: {
-        correlationId,
-        args,
-      },
+    const executionId = v4();
+    childModuleExecutionCallbacks.set(executionId, callback);
+    bufferOfExecutions.add({
+      executionId,
+      args,
     });
   };
 
   const releaseBufferedExecutions = (
-    sendMessage: ReleaseBufferedExecutionsSendMessageArg,
+    getExecution: ReleaseBufferedExecutionsGetExecutionArg,
   ) => {
-    bufferOfExecutionMessages.forEach(message => {
-      sendMessage(message);
+    bufferOfExecutions.forEach(executionData => {
+      getExecution(executionData);
     });
-    bufferOfExecutionMessages.clear();
+    bufferOfExecutions.clear();
   };
 
-  const areThereExecutionsBuffered = () =>
-    Boolean(bufferOfExecutionMessages.size);
+  const areThereExecutionsBuffered = () => Boolean(bufferOfExecutions.size);
 
   const resolveExecution = ({
-    correlationId,
+    executionId,
     result,
-  }: ChildMessageExecutionResultData) => {
+  }: FromChildMessageExecutionResultData) => {
     const data = result.error ? undefined : result.data;
     const error = result.error ? new Error(result.data) : undefined;
-    const callback = childModuleExecutionCallbacks.get(correlationId);
+    const callback = childModuleExecutionCallbacks.get(executionId);
     if (!callback) {
       throw new Error('Execution callback not found');
     }
     callback(error, data);
-    childModuleExecutionCallbacks.delete(correlationId);
+    childModuleExecutionCallbacks.delete(executionId);
   };
 
   const resolveAllExecutions = (
-    result: ChildMessageExecutionResultDataResult,
+    result: FromChildMessageExecutionResultDataResult,
   ) => {
-    bufferOfExecutionMessages.forEach(
-      ({ data: { correlationId } }: ParentMessageExecute) => {
-        resolveExecution({ correlationId, result });
-      },
-    );
-    bufferOfExecutionMessages.clear();
+    bufferOfExecutions.forEach(({ executionId }) => {
+      resolveExecution({ executionId, result });
+    });
+    bufferOfExecutions.clear();
   };
 
   return {
@@ -132,28 +159,56 @@ const createChildController = () => {
     areThereExecutionsBuffered,
     resolveExecution,
     resolveAllExecutions,
+    execute: (
+      data: FromParentMessageExecuteData,
+    ): FromParentMessageExecute => ({
+      type: FromParentMessageType.execute,
+      data,
+    }),
+    callbackExecutionResult: (
+      data: FromParentMessageCallbackExecutionResultData,
+    ): FromParentMessageCallbackExecutionResult => ({
+      type: FromParentMessageType.callbackExecutionResult,
+      data,
+    }),
     makeMessageHandler:
-      (handlers: ChildMessageHandlers) =>
-      ({ type, data }: ChildMessageReady | ChildMessageExecutionResult) =>
+      (handlers: FromChildMessageHandlers) =>
+      ({
+        type,
+        data,
+      }:
+        | FromChildMessageExecuteCallback
+        | FromChildMessageExecutionResult
+        | FromChildMessageReady) =>
         // @ts-ignore
         handlers[type](data),
   };
 };
 
 const parentController = {
-  ready: (data: ChildMessageReadyData): ChildMessageReady => ({
-    type: ChildMessageType.ready,
+  ready: (data: FromChildMessageReadyData): FromChildMessageReady => ({
+    type: FromChildMessageType.ready,
     data,
   }),
   executionResult: (
-    data: ChildMessageExecutionResultData,
-  ): ChildMessageExecutionResult => ({
-    type: ChildMessageType.executionResult,
+    data: FromChildMessageExecutionResultData,
+  ): FromChildMessageExecutionResult => ({
+    type: FromChildMessageType.executionResult,
+    data,
+  }),
+  executeCallback: (
+    data: FromChildMessageExecuteCallbackData,
+  ): FromChildMessageExecuteCallback => ({
+    type: FromChildMessageType.executeCallback,
     data,
   }),
   makeMessageHandler:
-    (handlers: ParentMessageHandlers) =>
-    ({ type, data }: ParentMessageExecute) =>
+    (handlers: FromParentMessageHandlers) =>
+    ({
+      type,
+      data,
+    }: FromParentMessageCallbackExecutionResult | FromParentMessageExecute) =>
+      // @ts-ignore
       handlers[type](data),
 };
 

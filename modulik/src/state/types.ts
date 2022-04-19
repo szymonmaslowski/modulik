@@ -57,6 +57,7 @@ interface RejectExecutionWithInvalidModuleTypeErrorArgs {
 
 export type ArgAreThereExecutionsBuffered = () => boolean;
 export type ArgBufferExecution = (args: BufferExecutionArgs) => void;
+export type ArgClearRegisteredCallbacks = () => void;
 export type ArgLogBufferedExecutionsTerminated = () => void;
 export type ArgLogCannotRestartKilledModule = () => void;
 export type ArgLogFailed = () => void;

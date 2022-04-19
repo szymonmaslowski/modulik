@@ -1,4 +1,6 @@
 import { parentController } from './bridge';
+import { callbackKeyName } from './constants';
+import createFunctionController from './functionModuleController';
 
 process.on('SIGTERM', () => {
   process.exit(0);
@@ -42,11 +44,63 @@ try {
   serializable = false;
 }
 
+type GenericCallback = (...args: any[]) => any;
+const callbackController = createFunctionController<GenericCallback>();
+
+const callbackKeyRegex = new RegExp(
+  `^${callbackKeyName}:([0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12})$`,
+  'i',
+);
+
+const substituteCallbackRepresentationWithRealOne = (arg: any) => {
+  const callbackId = arg.match(callbackKeyRegex)?.[1];
+  if (!callbackId) return arg;
+
+  return callbackController.create(({ id: executionId, args }) => {
+    process.send!(
+      parentController.executeCallback({
+        args,
+        callbackId,
+        executionId,
+      }),
+    );
+  });
+};
+
 if (moduleType === 'function') {
   process.on(
     'message',
     parentController.makeMessageHandler({
-      async execute({ correlationId, args }) {
+      async callbackExecutionResult({ executionId, result }) {
+        const data = result.error ? undefined : result.data;
+        const error = result.error ? new Error(result.data) : undefined;
+
+        const execution = callbackController.get(executionId);
+        if (error) {
+          execution.reject(error);
+          return;
+        }
+        execution.resolve(data);
+      },
+      async execute({ executionId, args: rawArgs }) {
+        const args = rawArgs.map(arg => {
+          if (Array.isArray(arg)) {
+            return arg.map(substituteCallbackRepresentationWithRealOne);
+          }
+
+          if (typeof arg === 'object') {
+            return Object.entries(arg).reduce(
+              (acc, [key, value]) =>
+                Object.assign(acc, {
+                  [key]: substituteCallbackRepresentationWithRealOne(value),
+                }),
+              arg,
+            );
+          }
+
+          return substituteCallbackRepresentationWithRealOne(arg);
+        });
+
         let result = null;
         try {
           const data = await childModule(...args);
@@ -59,7 +113,7 @@ if (moduleType === 'function') {
           result = { data: errorMessage, error: true };
         }
         process.send!(
-          parentController.executionResult({ correlationId, result }),
+          parentController.executionResult({ executionId, result }),
         );
       },
     }),
