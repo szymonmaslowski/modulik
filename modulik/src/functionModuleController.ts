@@ -7,11 +7,12 @@ import {
 } from './types';
 
 interface FunctionModuleExecutionCallbackArgs {
-  id: string;
   args: GenericModuleBodyFunctionArgs;
+  executionId: string;
+  functionId: string;
 }
 
-type FunctionModuleExecutionCallback = (
+export type FunctionModuleExecutionCallback = (
   args: FunctionModuleExecutionCallbackArgs,
 ) => void;
 
@@ -24,20 +25,20 @@ const createFunctionController = <ModuleBody>(
   >();
 
   const create =
-    (callback: FunctionModuleExecutionCallback) =>
+    (functionId: string, callback: FunctionModuleExecutionCallback) =>
     (...rawArgs: FunctionModuleBodyArgs<ModuleBody>) =>
       new Promise<FunctionModuleBodyResult<ModuleBody>>((resolve, reject) => {
         const args = parseArguments(rawArgs);
 
-        const id = v4();
-        registeredExecutions.set(id, {
+        const executionId = v4();
+        registeredExecutions.set(executionId, {
           reject,
           resolve,
         });
-        callback({ args, id });
+        callback({ args, executionId, functionId });
       });
 
-  const get = (id: string) => {
+  const getExecution = (id: string) => {
     const execution = registeredExecutions.get(id);
     if (!execution) {
       throw new Error('No such execution');
@@ -45,15 +46,20 @@ const createFunctionController = <ModuleBody>(
     return execution;
   };
 
-  const reject = (id: string, error: Error) => {
-    get(id).reject(error);
+  const rejectExecution = (id: string, error: Error) => {
+    getExecution(id).reject(error);
+    registeredExecutions.delete(id);
+  };
+
+  const resolveExecution = (id: string, value: any) => {
+    getExecution(id).resolve(value);
     registeredExecutions.delete(id);
   };
 
   return {
     create,
-    get,
-    reject,
+    rejectExecution,
+    resolveExecution,
   };
 };
 

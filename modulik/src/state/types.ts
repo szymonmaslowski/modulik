@@ -1,8 +1,4 @@
-import {
-  ExecutionId,
-  GenericModuleBodyFunctionArgs,
-  ModuleType,
-} from '../types';
+import { GenericModuleBodyFunctionArgs, ModuleType } from '../types';
 
 export enum ChildProcessEventType {
   ready = 'ready',
@@ -27,36 +23,37 @@ export enum MainEventType {
 export interface ReadinessData {
   body: any;
   serializable: boolean;
-  type: ModuleType;
 }
 
-interface BufferExecutionArgs {
+interface ArgBufferExecutionArgs {
   args: GenericModuleBodyFunctionArgs;
-  executionId: ExecutionId;
+  executionId: string;
+  functionId: string;
 }
 
-interface BufferExecutionArgs {
-  args: GenericModuleBodyFunctionArgs;
-  executionId: ExecutionId;
+interface ArgResolveModuleArgs {
+  body: any;
 }
 
-type ResolveModuleDataArg = ReadinessData;
-
-interface ResolveModuleArgs {
-  data: ResolveModuleDataArg;
+interface ArgTerminateBufferedExecutionsArgs {
+  functionId: string;
 }
 
 interface RejectExecutionWithKilledModuleErrorArgs {
-  executionId: ExecutionId;
+  executionId: string;
 }
 
 interface RejectExecutionWithInvalidModuleTypeErrorArgs {
-  executionId: ExecutionId;
+  executionId: string;
   type: ModuleType;
 }
 
+interface ArgReleaseBufferedExecutionsArgs {
+  functionId: string;
+}
+
 export type ArgAreThereExecutionsBuffered = () => boolean;
-export type ArgBufferExecution = (args: BufferExecutionArgs) => void;
+export type ArgBufferExecution = (args: ArgBufferExecutionArgs) => void;
 export type ArgClearRegisteredCallbacks = () => void;
 export type ArgLogBufferedExecutionsTerminated = () => void;
 export type ArgLogCannotRestartKilledModule = () => void;
@@ -78,10 +75,14 @@ export type ArgRejectModuleWithAvailabilityError = () => void;
 export type ArgRejectModuleWithFailureError = () => void;
 export type ArgRejectModuleWithSerializationError = () => void;
 export type ArgRejectModuleWithTranspilerError = () => void;
-export type ArgReleaseBufferedExecutions = () => void;
-export type ArgResolveModule = (args: ResolveModuleArgs) => void;
+export type ArgReleaseBufferedExecutions = (
+  args: ArgReleaseBufferedExecutionsArgs,
+) => void;
+export type ArgResolveModule = (args: ArgResolveModuleArgs) => void;
 export type ArgStartChildProcess = () => void;
 export type ArgStopChildProcess = () => void;
 export type ArgStartFSWatcher = () => void;
 export type ArgStopFSWatcher = () => void;
-export type ArgTerminateBufferedExecutions = () => void;
+export type ArgTerminateBufferedExecutions = (
+  args: ArgTerminateBufferedExecutionsArgs,
+) => void;

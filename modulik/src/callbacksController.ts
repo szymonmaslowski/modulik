@@ -18,13 +18,10 @@ const createArgumentsController = () => {
         return arg.map(substituteCallbackWithItsRepresentation);
 
       if (typeof arg === 'object')
-        return Object.entries(arg).reduce(
-          (acc, [key, value]) =>
-            Object.assign(acc, {
-              [key]: substituteCallbackWithItsRepresentation(value),
-            }),
-          arg,
-        );
+        return Object.entries(arg).reduce((acc, [key, value]) => {
+          acc[key] = substituteCallbackWithItsRepresentation(value);
+          return acc;
+        }, arg);
 
       return substituteCallbackWithItsRepresentation(arg);
     });

@@ -2,7 +2,7 @@ import { interpret } from 'xstate';
 import createChildProcessMachine from './childProcess';
 import createFSWatcherMachine from './fsWatcher';
 import createMainMachine from './main';
-import { ExecutionId, GenericModuleBodyFunctionArgs } from '../types';
+import { GenericModuleBodyFunctionArgs } from '../types';
 import {
   ArgAreThereExecutionsBuffered,
   ArgBufferExecution,
@@ -68,7 +68,8 @@ interface Args {
 
 interface ApiExecuteArgs {
   args: GenericModuleBodyFunctionArgs;
-  executionId: ExecutionId;
+  executionId: string;
+  functionId: string;
 }
 
 interface ApiProcessExitedArgs {
@@ -77,17 +78,6 @@ interface ApiProcessExitedArgs {
 }
 
 type ApiReadyArgs = ReadinessData;
-
-interface Api {
-  execute: ({ args, executionId }: ApiExecuteArgs) => void;
-  fSWatcherReady: () => void;
-  fSWatcherStopped: () => void;
-  killRequested: () => void;
-  moduleChanged: () => void;
-  processExited: ({ clean, transpilerError }: ApiProcessExitedArgs) => void;
-  ready: (data: ApiReadyArgs) => void;
-  restartRequested: () => void;
-}
 
 const createState = ({
   areThereExecutionsBuffered,
@@ -116,7 +106,7 @@ const createState = ({
   stopChildProcess,
   stopFSWatcher,
   terminateBufferedExecutions,
-}: Args): Api => {
+}: Args) => {
   const childProcessMachine = createChildProcessMachine({
     startChildProcess,
     stopChildProcess,
@@ -162,19 +152,33 @@ const createState = ({
   });
 
   return {
-    execute: ({ args, executionId }) =>
-      service.send(MainEventType.execute, { args, executionId }),
-    fSWatcherReady: () =>
+    execute: ({ args, executionId, functionId }: ApiExecuteArgs) => {
+      service.send({
+        type: MainEventType.execute,
+        data: {
+          args,
+          executionId,
+          functionId,
+        },
+      });
+    },
+    fSWatcherReady: () => {
       ensureMachineIsValidAndCall(service.state.context.fsWatcher, fsWatcher =>
         fsWatcher.send(FSWatcherEventType.ready),
-      ),
-    fSWatcherStopped: () =>
+      );
+    },
+    fSWatcherStopped: () => {
       ensureMachineIsValidAndCall(service.state.context.fsWatcher, fsWatcher =>
         fsWatcher.send(FSWatcherEventType.stopped),
-      ),
-    killRequested: () => service.send(MainEventType.killRequested),
-    moduleChanged: () => service.send(MainEventType.moduleChanged),
-    processExited: ({ clean, transpilerError }) =>
+      );
+    },
+    killRequested: () => {
+      service.send(MainEventType.killRequested);
+    },
+    moduleChanged: () => {
+      service.send(MainEventType.moduleChanged);
+    },
+    processExited: ({ clean, transpilerError }: ApiProcessExitedArgs) => {
       ensureMachineIsValidAndCall(
         service.state.context.childProcess,
         childProcess =>
@@ -185,8 +189,9 @@ const createState = ({
               transpilerError,
             },
           }),
-      ),
-    ready: data =>
+      );
+    },
+    ready: (data: ApiReadyArgs) => {
       ensureMachineIsValidAndCall(
         service.state.context.childProcess,
         childProcess =>
@@ -194,8 +199,11 @@ const createState = ({
             type: ChildProcessEventType.ready,
             data,
           }),
-      ),
-    restartRequested: () => service.send(MainEventType.restartRequested),
+      );
+    },
+    restartRequested: () => {
+      service.send(MainEventType.restartRequested);
+    },
   };
 };
 
