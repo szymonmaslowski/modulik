@@ -1,7 +1,7 @@
 import { v4 } from 'uuid';
 import { callbackKeyName } from './constants';
 
-const createArgumentsController = () => {
+const createCallbacksController = () => {
   const registeredCallbacks = new Map<string, Function>();
 
   const substituteCallbackWithItsRepresentation = (arg: any): any => {
@@ -9,7 +9,7 @@ const createArgumentsController = () => {
 
     const callbackId = v4();
     registeredCallbacks.set(callbackId, arg);
-    return `${callbackKeyName}:${callbackId}`;
+    return `[[${callbackKeyName}:${callbackId}]]`;
   };
 
   const parseArguments = (args: any[]) =>
@@ -46,4 +46,4 @@ const createArgumentsController = () => {
   };
 };
 
-export default createArgumentsController;
+export default createCallbacksController;

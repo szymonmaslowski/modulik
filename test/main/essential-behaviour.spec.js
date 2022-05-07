@@ -75,8 +75,8 @@ describe('Essential behaviour', () => {
       },
     },
   ].forEach(({ typeName, precondition, fileName, matcher }) => {
-    it(`exposes ${typeName} under "module" property when module ${precondition}`, async () => {
-      const moduleWatched = modulik(`./resources/${fileName}`);
+    const runTheTestCase = async (options = undefined) => {
+      const moduleWatched = modulik(`./resources/${fileName}`, options);
       scheduler.add(async () => {
         await moduleWatched.kill();
       });
@@ -89,24 +89,14 @@ describe('Essential behaviour', () => {
       if (matcher.prepare) {
         assert.deepStrictEqual(matcher.prepare(exposedModule), true);
       }
+    };
+
+    it(`exposes ${typeName} under "module" property when module ${precondition}`, async () => {
+      await runTheTestCase();
     });
 
     it(`exposes ${typeName} under "module" property when module ${precondition} and disable option is set to true`, async () => {
-      const moduleWatched = modulik(`./resources/${fileName}`, {
-        disable: true,
-      });
-      scheduler.add(async () => {
-        await moduleWatched.kill();
-      });
-      const exposedModule = await moduleWatched.module;
-
-      assert.deepStrictEqual(typeof exposedModule, matcher.type);
-      if (matcher.value) {
-        assert.deepStrictEqual(exposedModule, matcher.value);
-      }
-      if (matcher.prepare) {
-        assert.deepStrictEqual(matcher.prepare(exposedModule), true);
-      }
+      await runTheTestCase({ disable: true });
     });
   });
 

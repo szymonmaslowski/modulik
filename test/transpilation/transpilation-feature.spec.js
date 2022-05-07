@@ -106,8 +106,8 @@ describe('Transpilation feature', () => {
         await instance.kill();
       });
 
-      const esModule = await instance.module;
-      const result = await esModule();
+      const moduleBody = await instance.module;
+      const result = await moduleBody();
 
       assert.deepStrictEqual(result, expectedResult);
     });

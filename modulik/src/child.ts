@@ -40,21 +40,27 @@ const detectFunctionModuleAndSubstituteIt = (entity: any) => {
   return `[[${exportedFunctionKeyName}]]`;
 };
 
-const moduleBody = require(modulePath);
+const originalModuleBody = require(modulePath);
+const pickedModuleBody =
+  isPlainObject(originalModuleBody) && 'default' in originalModuleBody
+    ? originalModuleBody.default
+    : originalModuleBody;
 
-let parsedModuleBody = moduleBody;
-if (isPlainObject(moduleBody)) {
+let parsedModuleBody = originalModuleBody;
+if (isPlainObject(originalModuleBody)) {
   parsedModuleBody =
     'default' in parsedModuleBody
-      ? detectFunctionModuleAndSubstituteIt(parsedModuleBody.default)
-      : Object.entries(parsedModuleBody).reduce(
-          (acc, [exportName, exportedEntity]) => {
-            acc[exportName] =
-              detectFunctionModuleAndSubstituteIt(exportedEntity);
-            return acc;
-          },
-          parsedModuleBody,
-        );
+      ? detectFunctionModuleAndSubstituteIt(pickedModuleBody)
+      : (function detectNamedExportedFunctionsAndSubstituteThem() {
+          return Object.entries(originalModuleBody).reduce(
+            (acc, [exportName, exportedEntity]) => {
+              acc[exportName] =
+                detectFunctionModuleAndSubstituteIt(exportedEntity);
+              return acc;
+            },
+            originalModuleBody,
+          );
+        })();
 } else {
   parsedModuleBody = detectFunctionModuleAndSubstituteIt(parsedModuleBody);
 }
@@ -63,7 +69,7 @@ type GenericCallback = (...args: any[]) => any;
 const functionController = createFunctionController<GenericCallback>();
 
 const callbackKeyRegex = new RegExp(
-  `^${callbackKeyName}:([0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12})$`,
+  `\\[\\[${callbackKeyName}:([0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12})]]$`,
   'i',
 );
 
@@ -116,7 +122,7 @@ if (doesModuleExportAnyFunction(parsedModuleBody)) {
         });
 
         const result = await executeModuleFunction(
-          () => moduleBody(...args),
+          () => pickedModuleBody(...args),
           'Failed to execute the function exported by a given module',
         );
         process.send!(

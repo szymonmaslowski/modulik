@@ -6,7 +6,7 @@
   ],
   "scripts": {
     "build": "rimraf modulik/lib && rollup -c",
-    "build:watch": "rimraf modulik/lib && rollup -c --watch",
+    "build:watch": "nodemon -w modulik/src -e ts -x \"yarn build\"",
     "test": "run-s test:*",
     "test:main": "[ \"$CI\" = true ] && yarn --cwd test/main start || mocha test/main/*.spec.js",
     "test:transpilation": "yarn --cwd test/transpilation start",

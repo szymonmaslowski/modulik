@@ -171,16 +171,18 @@ const launchFully = <ModuleBody>({
       let targetBody = body;
 
       if (doesModuleHaveAnyNamedExportedFunction(body)) {
-        targetBody = getNamedExportedFunctionsFromModule(body).reduce(
-          (acc, { name }) => {
-            acc[name] = functionModule.create(
-              name,
-              functionModuleWrapperCallback,
-            );
-            return acc;
-          },
-          { ...body },
-        );
+        (function substituteNamedExportedFunctionsWithWrappers() {
+          targetBody = getNamedExportedFunctionsFromModule(body).reduce(
+            (acc, { name }) => {
+              acc[name] = functionModule.create(
+                name,
+                functionModuleWrapperCallback,
+              );
+              return acc;
+            },
+            { ...body },
+          );
+        })();
       }
 
       resolveModule(targetBody);

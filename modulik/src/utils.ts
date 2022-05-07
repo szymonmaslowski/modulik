@@ -63,18 +63,20 @@ export const executeModuleFunction = async (
   func: Function,
   fallbackErrorMessage: string,
 ) => {
+  let executionResult;
   try {
-    const data = await func();
-    const serializable = isDataSerializable(data);
-    return {
-      data: serializable ? data : undefined,
-      error: false,
-      serializable,
-    };
+    executionResult = await func();
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : fallbackErrorMessage;
     return { data: errorMessage, error: true, serializable: false };
   }
+
+  const serializable = isDataSerializable(executionResult);
+  return {
+    data: serializable ? executionResult : undefined,
+    error: false,
+    serializable,
+  };
 };
 
 interface ExecutionResult {
