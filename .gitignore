@@ -3,3 +3,5 @@ dist/
 modulik/lib
 *.log
 test/resources/fs-module.txt
+.yalc/
+yalc.lock

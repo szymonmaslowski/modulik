@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const { readFileSync } = require('fs');
-const modulik = require('./modulik');
+const modulik = require('modulik');
 const { scheduler, writeFileAndWait, deleteFileAndWait } = require('../utils');
 
 describe('Module availability', () => {
