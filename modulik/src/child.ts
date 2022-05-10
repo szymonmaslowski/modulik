@@ -105,7 +105,7 @@ if (doesModuleExportAnyFunction(parsedModuleBody)) {
         }
         functionController.resolveExecution(executionId, data);
       },
-      async execute({ executionId, args: rawArgs }) {
+      async execute({ args: rawArgs, executionId, functionId }) {
         const args = rawArgs.map(arg => {
           if (Array.isArray(arg)) {
             return arg.map(substituteCallbackRepresentationWithRealOne);
@@ -121,10 +121,28 @@ if (doesModuleExportAnyFunction(parsedModuleBody)) {
           return substituteCallbackRepresentationWithRealOne(arg);
         });
 
+        let moduleFunctionToExecute =
+          functionId === 'default'
+            ? pickedModuleBody
+            : pickedModuleBody[functionId];
+
+        if (
+          !moduleFunctionToExecute ||
+          !(moduleFunctionToExecute instanceof Function)
+        ) {
+          throw new Error('There is no exported function with given name');
+        }
+
+        if (functionId !== 'default') {
+          moduleFunctionToExecute =
+            moduleFunctionToExecute.bind(pickedModuleBody);
+        }
+
         const result = await executeModuleFunction(
-          () => pickedModuleBody(...args),
+          () => moduleFunctionToExecute(...args),
           'Failed to execute the function exported by a given module',
         );
+
         process.send!(
           parentController.executionResult({ executionId, result }),
         );

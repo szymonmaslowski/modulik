@@ -37,18 +37,6 @@ export const getNamedExportedFunctionsFromModule = (moduleBody: any) => {
     .map(([name, body]) => ({ body, name }));
 };
 
-export const parseFunctionRepresentation = (
-  functionRepresentation: string,
-): string => {
-  const functionId = functionRepresentation.match(
-    exportedFunctionKeyRegex,
-  )?.[1];
-  if (!functionId) {
-    throw new Error('Unable to parse function representation');
-  }
-  return functionId;
-};
-
 export const isDataSerializable = (data: any) => {
   try {
     const dataClone = v8.deserialize(v8.serialize(data));
@@ -91,7 +79,7 @@ export const parseModuleFunctionExecutionResult = (
 ) => {
   const data = result.error ? undefined : result.data;
   let error = result.error ? new Error(result.data) : undefined;
-  if (!result.serializable) {
+  if (!data && !error && !result.serializable) {
     error = new Error(serializationError);
   }
   return { data, error };

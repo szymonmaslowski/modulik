@@ -22,6 +22,7 @@ enum FromChildMessageType {
 interface FromParentMessageExecuteData {
   args: GenericModuleBodyFunctionArgs;
   executionId: string;
+  functionId: string;
 }
 
 type FromParentMessageExecute = Message<
@@ -136,8 +137,9 @@ const createChildController = () => {
     mapOfExecutionsBuffers.set(
       functionId,
       (mapOfExecutionsBuffers.get(functionId) || new Set()).add({
-        executionId,
         args,
+        executionId,
+        functionId,
       }),
     );
   };

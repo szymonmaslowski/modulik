@@ -412,13 +412,16 @@ const createMainMachine = ({
                 const shouldReject =
                   functionId === 'default'
                     ? !isEntityAFunctionRepresentation(body)
-                    : (() =>
-                        doesModuleHaveAnyNamedExportedFunction(body) &&
-                        Boolean(
-                          getNamedExportedFunctionsFromModule(body).find(
-                            ({ name }) => name === functionId,
-                          ),
-                        ))();
+                    : (function checkIfFunctionIdMatchesNamedExportedFunction() {
+                        return (
+                          doesModuleHaveAnyNamedExportedFunction(body) &&
+                          Boolean(
+                            getNamedExportedFunctionsFromModule(body).find(
+                              ({ name }) => name === functionId,
+                            ),
+                          )
+                        );
+                      })();
 
                 if (shouldReject) {
                   rejectExecutionWithInvalidModuleTypeError({
