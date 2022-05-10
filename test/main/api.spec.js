@@ -1,7 +1,7 @@
 const assert = require('assert');
 const EventEmitter = require('events');
-const { resolve } = require('path');
-const { existsSync, readFileSync } = require('fs');
+const path = require('path');
+const fs = require('fs');
 const modulik = require('modulik');
 const {
   spyOn,
@@ -38,11 +38,11 @@ describe('API', () => {
   });
 
   it('prioritises options object provided as second argument', async () => {
-    const fsArtifactPath = resolve(__dirname, 'resources/fs-artifact.txt');
-    const module1Path = resolve(__dirname, 'resources/object-module.js');
-    const module2Path = resolve(__dirname, 'resources/empty-module.js');
-    const module1Content = readFileSync(module1Path, 'utf-8');
-    const module2Content = readFileSync(module2Path, 'utf-8');
+    const fsArtifactPath = path.resolve(__dirname, 'resources/fs-artifact.txt');
+    const module1Path = path.resolve(__dirname, 'resources/object-module.js');
+    const module2Path = path.resolve(__dirname, 'resources/empty-module.js');
+    const module1Content = fs.readFileSync(module1Path, 'utf-8');
+    const module2Content = fs.readFileSync(module2Path, 'utf-8');
     const spy = spyOn(console, 'info');
     await deleteFileAndWait(fsArtifactPath);
 
@@ -71,23 +71,23 @@ describe('API', () => {
 
     const exposedModule = await moduleWatched.module;
     assert.deepStrictEqual(exposedModule, {});
-    assert.deepStrictEqual(existsSync(fsArtifactPath), true);
+    assert.deepStrictEqual(fs.existsSync(fsArtifactPath), true);
 
     await deleteFileAndWait(fsArtifactPath);
     await writeFileAndWait(module1Path, `${module1Content}\n`);
     await moduleWatched.module;
-    assert.deepStrictEqual(existsSync(fsArtifactPath), false);
+    assert.deepStrictEqual(fs.existsSync(fsArtifactPath), false);
 
     await writeFileAndWait(module2Path, `${module2Content}\n`);
     await moduleWatched.module;
 
-    assert.deepStrictEqual(existsSync(fsArtifactPath), true);
+    assert.deepStrictEqual(fs.existsSync(fsArtifactPath), true);
     assert.deepStrictEqual(spy.calls.length, 3);
   });
 
   it('allows for absolute path to module', async () => {
-    const fsArtifactPath = resolve(__dirname, 'resources/fs-artifact.txt');
-    const modulePath = resolve(__dirname, 'resources/fs-module');
+    const fsArtifactPath = path.resolve(__dirname, 'resources/fs-artifact.txt');
+    const modulePath = path.resolve(__dirname, 'resources/fs-module');
 
     const moduleWatched1 = modulik(modulePath);
     scheduler.add(async () => {
@@ -95,7 +95,7 @@ describe('API', () => {
       await moduleWatched1.kill();
     });
     await moduleWatched1.module;
-    assert.deepStrictEqual(existsSync(fsArtifactPath), true);
+    assert.deepStrictEqual(fs.existsSync(fsArtifactPath), true);
 
     await deleteFileAndWait(fsArtifactPath);
     const moduleWatched2 = modulik({ path: modulePath });
@@ -104,7 +104,7 @@ describe('API', () => {
       await moduleWatched2.kill();
     });
     await moduleWatched2.module;
-    assert.deepStrictEqual(existsSync(fsArtifactPath), true);
+    assert.deepStrictEqual(fs.existsSync(fsArtifactPath), true);
   });
 
   it('allows to skip extension in module path when the file has js or json extension', async () => {
@@ -173,5 +173,23 @@ describe('API', () => {
     });
     const func = await funcModulik.module;
     assert.deepStrictEqual(func() instanceof Promise, true);
+  });
+
+  it('provides promise api for executing callbacks', async () => {
+    const logFilePath = path.resolve(
+      __dirname,
+      'resources/callbacks-function-module-log.txt',
+    );
+
+    const instance = modulik('./resources/callbacks-function-module');
+    scheduler.add(async () => {
+      await writeFileAndWait(logFilePath, '');
+      await instance.kill();
+    });
+
+    const fn = await instance.module;
+    await fn('raw-result', () => {});
+    const logFileContent = fs.readFileSync(logFilePath, 'utf-8');
+    assert.deepStrictEqual(logFileContent, '[object Promise]');
   });
 });

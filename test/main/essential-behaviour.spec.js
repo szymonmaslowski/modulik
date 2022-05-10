@@ -74,6 +74,15 @@ describe('Essential behaviour', () => {
         prepare: a => a instanceof Object,
       },
     },
+    {
+      typeName: 'map',
+      precondition: 'exports map',
+      fileName: 'map-module.js',
+      matcher: {
+        type: 'object',
+        value: new Map([[{}, new Map()]]),
+      },
+    },
   ].forEach(({ typeName, precondition, fileName, matcher }) => {
     const runTheTestCase = async (options = undefined) => {
       const moduleWatched = modulik(`./resources/${fileName}`, options);

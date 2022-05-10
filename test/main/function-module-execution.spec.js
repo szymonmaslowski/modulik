@@ -1,7 +1,7 @@
 const assert = require('assert');
-const path = require('path');
-const { readFileSync, appendFileSync } = require('fs');
+const fs = require('fs');
 const modulik = require('modulik');
+const path = require('path');
 const { wait, scheduler, writeFileAndWait } = require('../utils');
 
 describe('Function module execution', () => {
@@ -30,6 +30,71 @@ describe('Function module execution', () => {
     assert.deepStrictEqual(result, '2 1');
   });
 
+  it('supports callback arguments', async () => {
+    const logFilePath = path.resolve(
+      __dirname,
+      'resources/callbacks-function-module-log.txt',
+    );
+    const instance = modulik('./resources/callbacks-function-module');
+    scheduler.add(async () => {
+      await writeFileAndWait(logFilePath, '');
+      await instance.kill();
+    });
+
+    const exposedFunction = await instance.module;
+    await exposedFunction('result-type', () => true, [() => 'two', () => 3], {
+      cb4: () => null,
+      cb5: () => {},
+    });
+    const logFileContent = fs.readFileSync(logFilePath, 'utf-8');
+
+    assert.deepStrictEqual(
+      logFileContent,
+      "boolean true,string 'two',number 3,object null,undefined undefined",
+    );
+  });
+
+  it('is able to return advanced types as function module execution result', async () => {
+    const instance = modulik('./resources/function-module-returning-map');
+    scheduler.add(async () => {
+      await instance.kill();
+    });
+
+    const fn = await instance.module;
+    assert.deepStrictEqual(await fn(), new Map([[{}, new Map()]]));
+  });
+
+  it('is able to transfer to the child advanced types returned from passed callbacks', async () => {
+    const logFilePath = path.resolve(
+      __dirname,
+      'resources/callbacks-function-module-log.txt',
+    );
+    const instance = modulik('./resources/callbacks-function-module');
+    scheduler.add(async () => {
+      await writeFileAndWait(logFilePath, '');
+      await instance.kill();
+    });
+
+    const exposedFunction = await instance.module;
+    await exposedFunction(
+      'result-type',
+      () => /test/,
+      [() => Buffer.from('test'), () => new Int8Array([1, 2])],
+      {
+        cb4: () => new Map([[{}, new Set([true])]]),
+        cb5: () => new Error('Test'),
+      },
+    );
+
+    const firstLineOfLogFile = fs
+      .readFileSync(logFilePath, 'utf-8')
+      .split('\n')[0];
+    assert.deepStrictEqual(
+      firstLineOfLogFile,
+      `object /test/,object <Buffer 74 65 73 74>,object Int8Array(2) [ 1, 2 ],object Map(1) { {} => Set(1) { true } },object Error: Test`,
+    );
+  });
+
   it('throws when executing killed module', async () => {
     const moduleWatched = modulik('./resources/function-module');
     scheduler.add(async () => {
@@ -49,7 +114,7 @@ describe('Function module execution', () => {
 
   it('allows to use same module representation function instance after module change', async () => {
     const modulePath = path.resolve(__dirname, 'resources/function-module.js');
-    const moduleContent = readFileSync(modulePath, 'utf-8');
+    const moduleContent = fs.readFileSync(modulePath, 'utf-8');
     const functionModulik = modulik(modulePath);
     scheduler.add(async () => {
       await functionModulik.kill();
@@ -71,7 +136,7 @@ describe('Function module execution', () => {
 
   it('throws an error when trying to execute a module which is not a function anymore', async () => {
     const modulePath = path.resolve(__dirname, 'resources/function-module.js');
-    const moduleContent = readFileSync(modulePath, 'utf-8');
+    const moduleContent = fs.readFileSync(modulePath, 'utf-8');
     const functionModulik = modulik(modulePath);
     scheduler.add(async () => {
       await functionModulik.kill();
@@ -96,7 +161,7 @@ describe('Function module execution', () => {
       __dirname,
       'resources/long-evaluable-logging-function-module.js',
     );
-    const moduleContent = readFileSync(modulePath, 'utf-8');
+    const moduleContent = fs.readFileSync(modulePath, 'utf-8');
     const logFilePath = path.resolve(
       __dirname,
       'resources/buffering-test-log.txt',
@@ -114,12 +179,12 @@ describe('Function module execution', () => {
     // module is being evaluated by 600ms.
     await wait(400);
     const moduleExecutionPromise = func();
-    appendFileSync(logFilePath, 'INVOCATION\n');
+    fs.appendFileSync(logFilePath, 'INVOCATION\n');
     await moduleExecutionPromise;
-    appendFileSync(logFilePath, 'END OF EXECUTION\n');
+    fs.appendFileSync(logFilePath, 'END OF EXECUTION\n');
 
     assert.deepStrictEqual(
-      readFileSync(logFilePath, 'utf-8'),
+      fs.readFileSync(logFilePath, 'utf-8'),
       'MODULE START\nINVOCATION\nMODULE STOP\nEND OF EXECUTION\n',
     );
   });
@@ -129,7 +194,7 @@ describe('Function module execution', () => {
       __dirname,
       'resources/long-evaluable-number-module.js',
     );
-    const moduleContent = readFileSync(modulePath, 'utf-8');
+    const moduleContent = fs.readFileSync(modulePath, 'utf-8');
     await writeFileAndWait(modulePath, 'module.exports = () => {};');
     const functionModulik = modulik(modulePath);
     scheduler.add(async () => {
@@ -151,23 +216,5 @@ describe('Function module execution', () => {
       return;
     }
     throw new Error('Module did not throw');
-  });
-
-  it('supports callback arguments', async () => {
-    const modulePath = path.resolve(__dirname, 'resources/callbacks-module.js');
-    const callbacksModulik = modulik(modulePath);
-    scheduler.add(async () => {
-      await callbacksModulik.kill();
-    });
-
-    const exposedFunction = await callbacksModulik.module;
-
-    assert.deepStrictEqual(
-      await exposedFunction(() => 'one', [() => 1, () => true], {
-        cb4: () => 1n,
-        cb5: () => new Map([[1, 1]]),
-      }),
-      ['one', 1, true, 1n, new Map([[1, 1]])],
-    );
   });
 });
