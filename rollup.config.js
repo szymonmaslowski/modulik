@@ -3,11 +3,14 @@ import glob from 'fast-glob';
 import pluginDts from 'rollup-plugin-dts';
 
 const external = [
+  'assert',
   'child_process',
   'chokidar',
   'events',
+  'lodash.isplainobject',
   'path',
   'uuid',
+  'v8',
   'xstate',
 ];
 

@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const { readFileSync } = require('fs');
-const modulik = require('./modulik');
+const modulik = require('modulik');
 const { scheduler, writeFileAndWait, deleteFileAndWait } = require('../utils');
 
 describe('Module availability', () => {
@@ -69,7 +69,7 @@ describe('Module availability', () => {
     assert.deepStrictEqual(exposedModule, 1);
   });
 
-  it('allows to access killed module if module was accessible before', async () => {
+  it('allows to access killed module if module was accessible before the kill', async () => {
     const moduleWatched = modulik('./resources/number-module');
     scheduler.add(async () => {
       await moduleWatched.kill();

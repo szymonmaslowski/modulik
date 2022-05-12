@@ -53,6 +53,9 @@ jobs:
             - node_modules
           key: v1-dependencies-node-8-{{ checksum "test/main/yarn.lock" }}
       - run:
+          name: Link modulik package
+          command: yarn link-modulik
+      - run:
           name: Run main tests
           command: yarn --cwd test/main start
 
@@ -74,6 +77,9 @@ jobs:
             - node_modules
           key: v1-dependencies-node-16-{{ checksum "test/main/yarn.lock" }}-{{ checksum "test/transpilation/yarn.lock" }}
       - run:
+          name: Link modulik package
+          command: yarn link-modulik
+      - run:
           name: Run all tests
           command: yarn test
 
@@ -94,6 +100,9 @@ jobs:
           paths:
             - node_modules
           key: v1-dependencies-node-16-{{ checksum "test/main/yarn.lock" }}-{{ checksum "test/transpilation/yarn.lock" }}
+      - run:
+          name: Link modulik package
+          command: yarn link-modulik
       - run:
           name: Lint
           command: yarn lint

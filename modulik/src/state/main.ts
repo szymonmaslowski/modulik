@@ -8,13 +8,19 @@ import {
   State,
 } from 'xstate';
 import { EventObject, Typestate } from 'xstate/lib/types';
-import { ExecutionId, GenericModuleBodyFunctionArgs } from '../types';
+import { GenericModuleBodyFunctionArgs } from '../types';
+import {
+  doesModuleHaveAnyNamedExportedFunction,
+  getNamedExportedFunctionsFromModule,
+  isEntityAFunctionRepresentation,
+} from '../utils';
 import { ChildProcessMachine } from './childProcess';
 import { FSWatcherMachine } from './fsWatcher';
 import { ensureMachineIsValidAndCall, isMachineValid } from './utils';
 import {
   ArgAreThereExecutionsBuffered,
   ArgBufferExecution,
+  ArgClearRegisteredCallbacks,
   ArgLogBufferedExecutionsTerminated,
   ArgLogCannotRestartKilledModule,
   ArgLogFailed,
@@ -47,6 +53,7 @@ type FSWatcherContextProperty = ActorRefFrom<FSWatcherMachine>;
 interface MainContext {
   childProcess: ChildProcessContextProperty | null;
   fsWatcher: FSWatcherContextProperty | null;
+  lastExportedFunctionIds: string[];
 }
 
 interface EventStart {
@@ -57,10 +64,15 @@ interface EventKillRequested {
   type: MainEventType.killRequested;
 }
 
+interface EventExecuteData {
+  args: GenericModuleBodyFunctionArgs;
+  executionId: string;
+  functionId: string;
+}
+
 interface EventExecute {
   type: MainEventType.execute;
-  args: GenericModuleBodyFunctionArgs;
-  executionId: ExecutionId;
+  data: EventExecuteData;
 }
 
 interface EventModuleChanged {
@@ -78,12 +90,12 @@ type MainEvent =
   | EventModuleChanged
   | EventRestartRequested;
 
-enum StateRestartingChildState {
+enum RestartingStateChildState {
   log = 'log',
   wait = 'wait',
 }
 
-enum StateKillingChildState {
+enum KillingStateChildState {
   childProcess = 'childProcess',
   fsWatcher = 'fsWatcher',
 }
@@ -118,8 +130,8 @@ interface StateSetup {
 interface StateOtherThanIdleOrSetup {
   value:
     | Exclude<MainState, MainState.idle | MainState.setup>
-    | { [MainState.restarting]: StateRestartingChildState }
-    | { [MainState.killing]: StateKillingChildState };
+    | { [MainState.restarting]: RestartingStateChildState }
+    | { [MainState.killing]: KillingStateChildState };
   context: MainContext & {
     childProcess: ChildProcessContextProperty;
     fsWatcher: FSWatcherContextProperty;
@@ -131,6 +143,7 @@ type MainTypestate = StateIdle | StateSetup | StateOtherThanIdleOrSetup;
 interface Args {
   areThereExecutionsBuffered: ArgAreThereExecutionsBuffered;
   bufferExecution: ArgBufferExecution;
+  clearRegisteredCallbacks: ArgClearRegisteredCallbacks;
   childProcessMachine: ChildProcessMachine;
   fsWatcherMachine: FSWatcherMachine;
   logBufferedExecutionsTerminated: ArgLogBufferedExecutionsTerminated;
@@ -154,10 +167,10 @@ interface Args {
   terminateBufferedExecutions: ArgTerminateBufferedExecutions;
 }
 
-const makeRestartingChildState = (childState: StateRestartingChildState) =>
+const makeRestartingChildState = (childState: RestartingStateChildState) =>
   `${MainState.restarting}.${childState}`;
 
-const makeKillingChildState = (childState: StateKillingChildState) =>
+const makeKillingChildState = (childState: KillingStateChildState) =>
   `${MainState.killing}.${childState}`;
 
 const isState = <C, E extends EventObject, S, T extends Typestate<C>, R>(
@@ -168,6 +181,7 @@ const isState = <C, E extends EventObject, S, T extends Typestate<C>, R>(
 const createMainMachine = ({
   areThereExecutionsBuffered,
   bufferExecution,
+  clearRegisteredCallbacks,
   childProcessMachine,
   fsWatcherMachine,
   logBufferedExecutionsTerminated,
@@ -196,6 +210,7 @@ const createMainMachine = ({
     context: {
       fsWatcher: null,
       childProcess: null,
+      lastExportedFunctionIds: [],
     },
     states: {
       [MainState.idle]: {
@@ -221,7 +236,7 @@ const createMainMachine = ({
         },
         on: {
           [MainEventType.killRequested]: {
-            target: makeKillingChildState(StateKillingChildState.fsWatcher),
+            target: makeKillingChildState(KillingStateChildState.fsWatcher),
             actions: rejectModuleWithAvailabilityError,
           },
         },
@@ -262,16 +277,16 @@ const createMainMachine = ({
         on: {
           [MainEventType.execute]: {
             actions: [
-              pure((_, { args, executionId }) => {
-                bufferExecution({ args, executionId });
+              pure((_, { data: { args, executionId, functionId } }) => {
+                bufferExecution({ args, executionId, functionId });
               }),
             ],
           },
           [MainEventType.moduleChanged]: makeRestartingChildState(
-            StateRestartingChildState.wait,
+            RestartingStateChildState.wait,
           ),
           [MainEventType.restartRequested]: makeRestartingChildState(
-            StateRestartingChildState.wait,
+            RestartingStateChildState.wait,
           ),
           [MainEventType.killRequested]: {
             target: MainState.killing,
@@ -280,44 +295,97 @@ const createMainMachine = ({
         },
       },
       [MainState.accessible]: {
-        entry: [
-          pure((ctx: MainContext) =>
-            ensureMachineIsValidAndCall(ctx.childProcess, childProcess => {
-              if (!areThereExecutionsBuffered()) return;
+        exit: [pure(clearRegisteredCallbacks)],
+        initial: 'handleBufferedExecutions',
+        states: {
+          handleBufferedExecutions: {
+            entry: pure((ctx: MainContext) =>
+              ensureMachineIsValidAndCall(ctx.childProcess, childProcess => {
+                if (!areThereExecutionsBuffered()) return;
 
-              const { readinessData } = childProcess.state.context;
-              if (!readinessData) {
-                throw new Error('Readiness data not available');
-              }
+                const { readinessData } = childProcess.state.context;
+                if (!readinessData) {
+                  throw new Error('Readiness data not available');
+                }
 
-              if (readinessData.type === 'function') {
-                releaseBufferedExecutions();
-                return;
-              }
+                const { body } = readinessData;
+                let executionsToTerminate = ctx.lastExportedFunctionIds;
 
-              terminateBufferedExecutions();
-              logBufferedExecutionsTerminated();
+                if (isEntityAFunctionRepresentation(body)) {
+                  releaseBufferedExecutions({ functionId: 'default' });
+                  executionsToTerminate = ctx.lastExportedFunctionIds.filter(
+                    functionId => functionId !== 'default',
+                  );
+                } else if (doesModuleHaveAnyNamedExportedFunction(body)) {
+                  getNamedExportedFunctionsFromModule(body).forEach(
+                    ({ name: functionId }) =>
+                      releaseBufferedExecutions({ functionId }),
+                  );
+
+                  const allExportedFunctionsNamesAndDefault =
+                    getNamedExportedFunctionsFromModule(body)
+                      .map(({ name }) => name)
+                      .concat('default');
+                  executionsToTerminate = ctx.lastExportedFunctionIds.filter(
+                    functionId =>
+                      !allExportedFunctionsNamesAndDefault.includes(functionId),
+                  );
+                }
+
+                if (!executionsToTerminate.length) return;
+
+                executionsToTerminate.forEach(functionId =>
+                  terminateBufferedExecutions({ functionId }),
+                );
+                logBufferedExecutionsTerminated();
+              }),
+            ),
+            always: 'handleModuleBody',
+          },
+          handleModuleBody: {
+            entry: pure((ctx: MainContext) =>
+              ensureMachineIsValidAndCall(ctx.childProcess, childProcess => {
+                const { readinessData } = childProcess.state.context;
+                if (!readinessData) {
+                  throw new Error('Readiness data not available');
+                }
+
+                const { serializable, body } = readinessData;
+
+                if (!isEntityAFunctionRepresentation(body) && !serializable) {
+                  rejectModuleWithSerializationError();
+                  return;
+                }
+
+                resolveModule({ body });
+                logReady();
+              }),
+            ),
+            always: 'storeLastExportedFunctionIds',
+          },
+          storeLastExportedFunctionIds: {
+            entry: assign({
+              lastExportedFunctionIds: ctx =>
+                ensureMachineIsValidAndCall(ctx.childProcess, childProcess => {
+                  const { readinessData } = childProcess.state.context;
+                  if (!readinessData) {
+                    throw new Error('Readiness data not available');
+                  }
+                  const { body } = readinessData;
+
+                  if (isEntityAFunctionRepresentation(body)) {
+                    return ['default'];
+                  }
+                  if (doesModuleHaveAnyNamedExportedFunction(body)) {
+                    return getNamedExportedFunctionsFromModule(body).map(
+                      ({ name }) => name,
+                    );
+                  }
+                  return [];
+                }),
             }),
-          ),
-          pure((ctx: MainContext) =>
-            ensureMachineIsValidAndCall(ctx.childProcess, childProcess => {
-              const { readinessData } = childProcess.state.context;
-              if (!readinessData) {
-                throw new Error('Readiness data not available');
-              }
-
-              const { serializable, type } = readinessData;
-
-              if (type !== 'function' && !serializable) {
-                rejectModuleWithSerializationError();
-                return;
-              }
-
-              resolveModule({ data: readinessData });
-              logReady();
-            }),
-          ),
-        ],
+          },
+        },
         always: [
           {
             target: MainState.failed,
@@ -332,23 +400,41 @@ const createMainMachine = ({
         ],
         on: {
           [MainEventType.execute]: {
-            actions: pure((ctx, { args, executionId }) =>
+            actions: pure((ctx, { data: { args, executionId, functionId } }) =>
               ensureMachineIsValidAndCall(ctx.childProcess, childProcess => {
                 const { readinessData } = childProcess.state.context;
                 if (!readinessData) {
                   throw new Error('Readiness data not available');
                 }
 
-                if (readinessData.type !== 'function') {
+                const { body } = readinessData;
+
+                const shouldReject =
+                  functionId === 'default'
+                    ? !isEntityAFunctionRepresentation(body)
+                    : !(function checkIfFunctionIdMatchesNamedExportedFunction() {
+                        return (
+                          doesModuleHaveAnyNamedExportedFunction(body) &&
+                          Boolean(
+                            getNamedExportedFunctionsFromModule(body).find(
+                              ({ name }) => name === functionId,
+                            ),
+                          )
+                        );
+                      })();
+
+                if (shouldReject) {
                   rejectExecutionWithInvalidModuleTypeError({
                     executionId,
-                    type: readinessData.type,
+                    type: typeof (functionId === 'default'
+                      ? body
+                      : body[functionId]),
                   });
                   return;
                 }
 
-                bufferExecution({ args, executionId });
-                releaseBufferedExecutions();
+                bufferExecution({ args, executionId, functionId });
+                releaseBufferedExecutions({ functionId });
               }),
             ),
           },
@@ -372,13 +458,13 @@ const createMainMachine = ({
           ),
           pure(recreateModulePromise),
         ],
-        initial: StateRestartingChildState.log,
+        initial: RestartingStateChildState.log,
         states: {
-          [StateRestartingChildState.log]: {
+          [RestartingStateChildState.log]: {
             entry: pure(logRestarting),
-            always: StateRestartingChildState.wait,
+            always: RestartingStateChildState.wait,
           },
-          [StateRestartingChildState.wait]: {},
+          [RestartingStateChildState.wait]: {},
         },
         always: [
           {
@@ -405,8 +491,8 @@ const createMainMachine = ({
         on: {
           [MainEventType.execute]: {
             actions: [
-              pure((_, { args, executionId }) => {
-                bufferExecution({ args, executionId });
+              pure((_, { data: { args, executionId, functionId } }) => {
+                bufferExecution({ args, executionId, functionId });
               }),
             ],
           },
@@ -436,8 +522,8 @@ const createMainMachine = ({
         on: {
           [MainEventType.execute]: {
             actions: [
-              pure((_, { args, executionId }) => {
-                bufferExecution({ args, executionId });
+              pure((_, { data: { args, executionId, functionId } }) => {
+                bufferExecution({ args, executionId, functionId });
               }),
             ],
           },
@@ -447,9 +533,9 @@ const createMainMachine = ({
         },
       },
       [MainState.killing]: {
-        initial: StateKillingChildState.childProcess,
+        initial: KillingStateChildState.childProcess,
         states: {
-          [StateKillingChildState.childProcess]: {
+          [KillingStateChildState.childProcess]: {
             entry: [
               pure<MainContext, MainEvent>((ctx: MainContext) =>
                 ensureMachineIsValidAndCall(ctx.childProcess, childProcess => {
@@ -462,9 +548,9 @@ const createMainMachine = ({
                 }),
               ),
             ],
-            always: StateKillingChildState.fsWatcher,
+            always: KillingStateChildState.fsWatcher,
           },
-          [StateKillingChildState.fsWatcher]: {
+          [KillingStateChildState.fsWatcher]: {
             entry: pure(() =>
               send(FSWatcherEventType.stopRequested, { to: 'fsWatcher' }),
             ),
@@ -482,7 +568,7 @@ const createMainMachine = ({
         },
         on: {
           [MainEventType.execute]: {
-            actions: pure((_, { executionId }) => {
+            actions: pure((_, { data: { executionId } }) => {
               rejectExecutionWithKilledModuleError({ executionId });
             }),
           },
@@ -508,7 +594,7 @@ const createMainMachine = ({
         ],
         on: {
           [MainEventType.execute]: {
-            actions: pure((_, { executionId }) => {
+            actions: pure((_, { data: { executionId } }) => {
               rejectExecutionWithKilledModuleError({ executionId });
             }),
           },

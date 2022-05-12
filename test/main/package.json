@@ -7,9 +7,10 @@
     "start": "mocha ./*.spec.js"
   },
   "dependencies": {
-    "modulik": "../../modulik"
+    "modulik": "*"
   },
   "devDependencies": {
-    "mocha": "^7.2.0"
+    "mocha": "^7.2.0",
+    "yalc": "^1.0.0-pre.53"
   }
 }

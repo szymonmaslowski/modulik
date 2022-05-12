@@ -2,16 +2,25 @@ import { ChildProcess, fork } from 'child_process';
 import chokidar, { FSWatcher } from 'chokidar';
 import path from 'path';
 import { createChildController } from '../bridge';
-import createState from '../state';
+import createCallbacksController from '../callbacksController';
 import {
   childPath,
   transpilerTypeBabel,
   transpilerTypeTypescript,
 } from '../constants';
+import createFunctionController, {
+  FunctionModuleExecutionCallback,
+} from '../functionModuleController';
+import createState from '../state';
 import { PromiseReject, PromiseResolve, TranspilerType } from '../types';
-import createFunctionModuleController from './createFunctionModuleController';
 import createLogger from './logger';
 import { Args, LaunchApi } from './types';
+import {
+  doesModuleHaveAnyNamedExportedFunction,
+  executeModuleFunction,
+  getNamedExportedFunctionsFromModule,
+  isEntityAFunctionRepresentation,
+} from '../utils';
 
 const mapOfTranspilerToModuleName: { [key in TranspilerType]: string } = {
   [transpilerTypeBabel]: '@babel/register',
@@ -27,7 +36,10 @@ const launchFully = <ModuleBody>({
   const moduleFileName = path.parse(cfg.path).base;
   const logger = createLogger(moduleFileName, cfg.quiet);
   const childController = createChildController();
-  const functionModule = createFunctionModuleController<ModuleBody>();
+  const callbacksController = createCallbacksController();
+  const functionModule = createFunctionController<ModuleBody>(
+    callbacksController.parseArguments,
+  );
 
   let fsWatcher: FSWatcher | null = null;
   let childProcess: ChildProcess | null = null;
@@ -56,9 +68,35 @@ const launchFully = <ModuleBody>({
   const noChildProcessError = new Error('Child process not created');
 
   const state = createState({
+    areThereExecutionsBuffered: () =>
+      childController.areThereExecutionsBuffered(),
+    bufferExecution: ({ args, executionId, functionId }) => {
+      childController.bufferExecution({
+        args,
+        functionId,
+        callback: (error, data) => {
+          if (error) {
+            functionModule.rejectExecution(executionId, error);
+            return;
+          }
+          functionModule.resolveExecution(executionId, data);
+        },
+      });
+    },
+    clearRegisteredCallbacks: () => {
+      callbacksController.clearRegisteredCallbacks();
+    },
+    logBufferedExecutionsTerminated: () => {
+      logger.error(
+        'At least one function exported from the module is not available anymore. Its buffered executions has been forgotten.',
+      );
+    },
+    logCannotRestartKilledModule: () => {
+      logger.error('Module killed - cannot restart');
+    },
+    logFailed: () => logger.error('Exited unexpectedly'),
     logReady: () => logger.info('Ready.'),
     logRestarting: () => logger.info('Restarting..'),
-    logFailed: () => logger.error('Exited unexpectedly'),
     logTranspilerError: () => {
       if (!cfg.transpiler) {
         throw new Error('Transpiler not configured');
@@ -70,41 +108,22 @@ const launchFully = <ModuleBody>({
         }" module could not be found. Did you forget to install it?`,
       );
     },
-    logCannotRestartKilledModule: () =>
-      logger.error('Module killed - cannot restart'),
+    notifyKilled: () => resolveKillRequestPromise(undefined),
+    notifyRestarted: () => resolveRestartRequestPromises(),
+    notifyRestartFailed: () =>
+      rejectRestartRequestPromises(new Error('Module exited unexpectedly')),
     recreateModulePromise,
-    resolveModule: ({ data: { body, type } }) => {
-      if (type !== 'function') {
-        resolveModule(body);
-        return;
-      }
-
-      const functionModuleWrapper = functionModule.create(({ args, id }) => {
-        state.execute({ args, executionId: id });
-      });
-
-      // @ts-ignore FIXME: TS doesn't understand that runtime `type` variable identifies the module body as a function
-      resolveModule(functionModuleWrapper);
+    rejectExecutionWithInvalidModuleTypeError: ({ executionId, type }) => {
+      functionModule.rejectExecution(
+        executionId,
+        new Error(`Cannot execute module of ${type} type`),
+      );
     },
-    areThereExecutionsBuffered: () =>
-      childController.areThereExecutionsBuffered(),
-    bufferExecution: ({ args, executionId }) => {
-      const execution = functionModule.get(executionId);
-      childController.bufferExecution(args, (error, data) => {
-        if (error) {
-          execution.reject(error);
-          return;
-        }
-        execution.resolve(data);
-      });
-    },
-    releaseBufferedExecutions: () => {
-      childController.releaseBufferedExecutions(message => {
-        if (!childProcess) {
-          throw noChildProcessError;
-        }
-        childProcess.send(message);
-      });
+    rejectExecutionWithKilledModuleError: ({ executionId }) => {
+      functionModule.rejectExecution(
+        executionId,
+        new Error('Cannot execute killed module'),
+      );
     },
     rejectModuleWithAvailabilityError: () => {
       rejectModule(new Error('Module unavailable'));
@@ -120,17 +139,53 @@ const launchFully = <ModuleBody>({
     rejectModuleWithTranspilerError: () => {
       rejectModule(new Error('Transpiler module not found'));
     },
-    rejectExecutionWithKilledModuleError: ({ executionId }) => {
-      functionModule.reject(
-        executionId,
-        new Error('Cannot execute killed module'),
-      );
+    releaseBufferedExecutions: ({ functionId }) => {
+      childController.releaseBufferedExecutions(functionId, executionData => {
+        if (!childProcess) {
+          throw noChildProcessError;
+        }
+
+        childProcess.send(childController.execute(executionData));
+      });
     },
-    rejectExecutionWithInvalidModuleTypeError: ({ executionId, type }) => {
-      functionModule.reject(
+    resolveModule: ({ body }) => {
+      const functionModuleWrapperCallback: FunctionModuleExecutionCallback = ({
+        args,
         executionId,
-        new Error(`Cannot execute module of ${type} type`),
-      );
+        functionId,
+      }) => {
+        state.execute({ args, executionId, functionId });
+      };
+
+      if (isEntityAFunctionRepresentation(body)) {
+        const functionModuleWrapper = functionModule.create(
+          'default',
+          functionModuleWrapperCallback,
+        );
+
+        // @ts-ignore FIXME: TS doesn't understand that runtime `type` variable identifies the module body as a function
+        resolveModule(functionModuleWrapper);
+        return;
+      }
+
+      let targetBody = body;
+
+      if (doesModuleHaveAnyNamedExportedFunction(body)) {
+        (function substituteNamedExportedFunctionsWithWrappers() {
+          targetBody = getNamedExportedFunctionsFromModule(body).reduce(
+            (acc, { name }) => {
+              acc[name] = functionModule.create(
+                name,
+                functionModuleWrapperCallback,
+              );
+              return acc;
+            },
+            { ...body },
+          );
+        })();
+      }
+
+      resolveModule(targetBody);
     },
     startFSWatcher: () => {
       fsWatcher = chokidar
@@ -150,11 +205,28 @@ const launchFully = <ModuleBody>({
       childProcess.on(
         'message',
         childController.makeMessageHandler({
-          executionResult({ correlationId, result }) {
-            childController.resolveExecution({ correlationId, result });
+          async executeCallback({ args, callbackId, executionId }) {
+            if (!childProcess) {
+              throw noChildProcessError;
+            }
+
+            const result = await executeModuleFunction(
+              () => callbacksController.executeCallback(callbackId, args),
+              'Failed to execute callback passed to the exported function',
+            );
+
+            childProcess.send(
+              childController.callbackExecutionResult({
+                executionId,
+                result,
+              }),
+            );
           },
-          ready: ({ body, serializable, type }) => {
-            state.ready({ body, serializable, type });
+          executionResult({ executionId, result }) {
+            childController.resolveExecution({ executionId, result });
+          },
+          ready: ({ body, serializable }) => {
+            state.ready({ body, serializable });
           },
         }),
       );
@@ -164,17 +236,6 @@ const launchFully = <ModuleBody>({
           transpilerError: code === 2,
         });
       });
-    },
-    terminateBufferedExecutions: () => {
-      childController.resolveAllExecutions({
-        error: true,
-        data: 'Module is not a function. Cannot execute.',
-      });
-    },
-    logBufferedExecutionsTerminated: () => {
-      logger.error(
-        'There were executions buffered, but the module is not a function anymore. Buffered executions has been forgotten.',
-      );
     },
     stopChildProcess: () => {
       if (!childProcess) {
@@ -189,10 +250,13 @@ const launchFully = <ModuleBody>({
       await fsWatcher.close();
       state.fSWatcherStopped();
     },
-    notifyRestarted: () => resolveRestartRequestPromises(),
-    notifyRestartFailed: () =>
-      rejectRestartRequestPromises(new Error('Module exited unexpectedly')),
-    notifyKilled: () => resolveKillRequestPromise(undefined),
+    terminateBufferedExecutions: ({ functionId }) => {
+      childController.resolveAllExecutions(functionId, {
+        error: true,
+        data: 'Module is not a function. Cannot execute.',
+        serializable: true,
+      });
+    },
   });
 
   return {

@@ -1,4 +1,13 @@
+import isPlainObject from 'lodash.isplainobject';
 import { parentController } from './bridge';
+import { callbackKeyName, exportedFunctionKeyName } from './constants';
+import createFunctionController from './functionModuleController';
+import {
+  doesModuleExportAnyFunction,
+  executeModuleFunction,
+  isDataSerializable,
+  parseModuleFunctionExecutionResult,
+} from './utils';
 
 process.on('SIGTERM', () => {
   process.exit(0);
@@ -26,50 +35,126 @@ if (transpiler) {
   }
 }
 
-let childModule = require(modulePath);
-const moduleHavingDefaultExport =
-  childModule && typeof childModule === 'object' && 'default' in childModule;
-if (moduleHavingDefaultExport) {
-  childModule = childModule.default;
+const detectFunctionModuleAndSubstituteIt = (entity: any) => {
+  if (!(entity instanceof Function)) return entity;
+  return `[[${exportedFunctionKeyName}]]`;
+};
+
+const originalModuleBody = require(modulePath);
+const pickedModuleBody =
+  isPlainObject(originalModuleBody) && 'default' in originalModuleBody
+    ? originalModuleBody.default
+    : originalModuleBody;
+
+let parsedModuleBody = originalModuleBody;
+if (isPlainObject(originalModuleBody)) {
+  parsedModuleBody =
+    'default' in parsedModuleBody
+      ? detectFunctionModuleAndSubstituteIt(pickedModuleBody)
+      : (function detectNamedExportedFunctionsAndSubstituteThem() {
+          return Object.entries(originalModuleBody).reduce(
+            (acc, [exportName, exportedEntity]) => {
+              acc[exportName] =
+                detectFunctionModuleAndSubstituteIt(exportedEntity);
+              return acc;
+            },
+            {} as typeof originalModuleBody,
+          );
+        })();
+} else {
+  parsedModuleBody = detectFunctionModuleAndSubstituteIt(parsedModuleBody);
 }
 
-const moduleType = typeof childModule;
-let serializable;
-try {
-  const serialized = JSON.stringify(childModule);
-  serializable = Boolean(serialized);
-} catch (e) {
-  serializable = false;
-}
+type GenericCallback = (...args: any[]) => any;
+const functionController = createFunctionController<GenericCallback>();
 
-if (moduleType === 'function') {
+const callbackKeyRegex = new RegExp(
+  `\\[\\[${callbackKeyName}:([0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12})]]$`,
+  'i',
+);
+
+const substituteCallbackRepresentationWithRealOne = (arg: any) => {
+  if (typeof arg !== 'string') return arg;
+  const callbackId = arg.match(callbackKeyRegex)?.[1];
+  if (!callbackId) return arg;
+
+  return functionController.create(callbackId, ({ args, executionId }) => {
+    process.send!(
+      parentController.executeCallback({
+        args,
+        callbackId,
+        executionId,
+      }),
+    );
+  });
+};
+
+if (doesModuleExportAnyFunction(parsedModuleBody)) {
   process.on(
     'message',
     parentController.makeMessageHandler({
-      async execute({ correlationId, args }) {
-        let result = null;
-        try {
-          const data = await childModule(...args);
-          result = { data, error: false };
-        } catch (e) {
-          const errorMessage =
-            e instanceof Error
-              ? e.message
-              : 'Failed to execute the function exported by a given module';
-          result = { data: errorMessage, error: true };
+      async callbackExecutionResult({ executionId, result }) {
+        const { data, error } = parseModuleFunctionExecutionResult(
+          result,
+          'Execution result of a callback argument of your module is not serializable',
+        );
+
+        if (error) {
+          functionController.rejectExecution(executionId, error);
+          return;
         }
+        functionController.resolveExecution(executionId, data);
+      },
+      async execute({ args: rawArgs, executionId, functionId }) {
+        const args = rawArgs.map(arg => {
+          if (Array.isArray(arg)) {
+            return arg.map(substituteCallbackRepresentationWithRealOne);
+          }
+
+          if (typeof arg === 'object') {
+            return Object.entries(arg).reduce((acc, [key, value]) => {
+              acc[key] = substituteCallbackRepresentationWithRealOne(value);
+              return acc;
+            }, {} as typeof arg);
+          }
+
+          return substituteCallbackRepresentationWithRealOne(arg);
+        });
+
+        let moduleFunctionToExecute =
+          functionId === 'default'
+            ? pickedModuleBody
+            : pickedModuleBody[functionId];
+
+        if (
+          !moduleFunctionToExecute ||
+          !(moduleFunctionToExecute instanceof Function)
+        ) {
+          throw new Error('There is no exported function with given name');
+        }
+
+        if (functionId !== 'default') {
+          moduleFunctionToExecute =
+            moduleFunctionToExecute.bind(pickedModuleBody);
+        }
+
+        const result = await executeModuleFunction(
+          () => moduleFunctionToExecute(...args),
+          'Failed to execute the function exported by a given module',
+        );
+
         process.send!(
-          parentController.executionResult({ correlationId, result }),
+          parentController.executionResult({ executionId, result }),
         );
       },
     }),
   );
 }
 
+const serializable = isDataSerializable(parsedModuleBody);
 process.send!(
   parentController.ready({
-    body: serializable ? childModule : undefined,
+    body: serializable ? parsedModuleBody : undefined,
     serializable,
-    type: moduleType,
   }),
 );

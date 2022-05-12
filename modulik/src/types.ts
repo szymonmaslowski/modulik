@@ -68,8 +68,6 @@ export type ModulikModuleBody<ModuleBody> = ModuleBody extends FunctionModule
     >
   : ModuleBody;
 
-export type ExecutionId = string;
-
 export type ModuleType =
   | 'string'
   | 'number'
