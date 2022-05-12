@@ -18,7 +18,7 @@
     "link-modulik:push": "yarn --cwd modulik yalc push",
     "link-modulik:add-to-main": "yarn --cwd test/main yalc link modulik",
     "link-modulik:add-to-transpilation": "yarn --cwd test/transpilation yalc link modulik",
-    "install-deps-in-tests": "[ \"$CI\" != true ] && yarn --cwd test/main install && yarn --cwd test/transpilation install || echo Skipping dependencies installation in tests projects"
+    "install-deps-in-tests": "[ \"$SKIP_TEST_DEPS_INSTALL\" != true ] && yarn --cwd test/main install && yarn --cwd test/transpilation install || echo Skipping dependencies installation in tests projects"
   },
   "devDependencies": {
     "@rollup/plugin-typescript": "^8.3.1",
