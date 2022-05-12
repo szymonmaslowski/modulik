@@ -21,7 +21,7 @@ const createCallbacksController = () => {
         return Object.entries(arg).reduce((acc, [key, value]) => {
           acc[key] = substituteCallbackWithItsRepresentation(value);
           return acc;
-        }, arg);
+        }, {} as typeof arg);
 
       return substituteCallbackWithItsRepresentation(arg);
     });

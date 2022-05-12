@@ -176,10 +176,7 @@ describe('API', () => {
   });
 
   it('provides promise api for executing callbacks', async () => {
-    const logFilePath = path.resolve(
-      __dirname,
-      'resources/callbacks-function-module-log.txt',
-    );
+    const logFilePath = path.resolve(__dirname, 'resources/callbacks-log.txt');
 
     const instance = modulik('./resources/callbacks-function-module');
     scheduler.add(async () => {

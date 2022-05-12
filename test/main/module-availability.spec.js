@@ -69,7 +69,7 @@ describe('Module availability', () => {
     assert.deepStrictEqual(exposedModule, 1);
   });
 
-  it('allows to access killed module if module was accessible before', async () => {
+  it('allows to access killed module if module was accessible before the kill', async () => {
     const moduleWatched = modulik('./resources/number-module');
     scheduler.add(async () => {
       await moduleWatched.kill();

@@ -412,7 +412,7 @@ const createMainMachine = ({
                 const shouldReject =
                   functionId === 'default'
                     ? !isEntityAFunctionRepresentation(body)
-                    : (function checkIfFunctionIdMatchesNamedExportedFunction() {
+                    : !(function checkIfFunctionIdMatchesNamedExportedFunction() {
                         return (
                           doesModuleHaveAnyNamedExportedFunction(body) &&
                           Boolean(

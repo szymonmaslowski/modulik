@@ -58,7 +58,7 @@ if (isPlainObject(originalModuleBody)) {
                 detectFunctionModuleAndSubstituteIt(exportedEntity);
               return acc;
             },
-            originalModuleBody,
+            {} as typeof originalModuleBody,
           );
         })();
 } else {
@@ -115,7 +115,7 @@ if (doesModuleExportAnyFunction(parsedModuleBody)) {
             return Object.entries(arg).reduce((acc, [key, value]) => {
               acc[key] = substituteCallbackRepresentationWithRealOne(value);
               return acc;
-            }, arg);
+            }, {} as typeof arg);
           }
 
           return substituteCallbackRepresentationWithRealOne(arg);

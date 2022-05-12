@@ -2,10 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const util = require('util');
 
-const logFilePath = path.resolve(
-  __dirname,
-  'callbacks-function-module-log.txt',
-);
+const logFilePath = path.resolve(__dirname, 'callbacks-log.txt');
 
 module.exports = async (strategy, cb1, [cb2, cb3] = [], { cb4, cb5 } = {}) => {
   const callbacksResults = [cb1, cb2, cb3, cb4, cb5]
